@@ -8,8 +8,10 @@ import { HealthController } from './health/health.controller';
 import { HealthService } from './health/health.service';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
+import { RolesModule } from './roles/roles.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { AllEntities } from './entities';
+import { TestPermissionsController } from './roles/test-permissions.controller';
 
 @Module({
   imports: [
@@ -37,8 +39,9 @@ import { AllEntities } from './entities';
     }),
     AuthModule,
     UsersModule,
+    RolesModule,
   ],
-  controllers: [AppController, HealthController],
+  controllers: [AppController, HealthController, TestPermissionsController],
   providers: [
     AppService,
     HealthService,
