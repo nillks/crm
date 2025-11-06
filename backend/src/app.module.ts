@@ -5,6 +5,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { HealthController } from './health/health.controller';
 import { HealthService } from './health/health.service';
+import { AllEntities } from './entities';
 
 @Module({
   imports: [
@@ -21,9 +22,12 @@ import { HealthService } from './health/health.service';
         username: configService.get('DB_USERNAME', 'postgres'),
         password: configService.get('DB_PASSWORD', 'postgres'),
         database: configService.get('DB_DATABASE', 'crm_db'),
-        entities: [],
+        entities: AllEntities,
         synchronize: configService.get('NODE_ENV') !== 'production',
         logging: configService.get('NODE_ENV') === 'development',
+        migrations: ['dist/migrations/*.js'],
+        migrationsRun: false,
+        autoLoadEntities: true,
       }),
       inject: [ConfigService],
     }),
