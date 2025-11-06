@@ -38,7 +38,7 @@ export class AuthService {
     // Проверяем, существует ли пользователь с таким email
     const existingUser = await this.usersService.findByEmail(registerDto.email);
     if (existingUser) {
-      throw new ConflictException('User with this email already exists');
+      throw new ConflictException('Пользователь с таким email уже существует');
     }
 
     // Хешируем пароль
@@ -71,18 +71,18 @@ export class AuthService {
     // Находим пользователя
     const user = await this.usersService.findByEmail(loginDto.email);
     if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('Неверный email или пароль');
     }
 
     // Проверяем статус пользователя
     if (user.status !== 'active') {
-      throw new UnauthorizedException('User account is inactive');
+      throw new UnauthorizedException('Аккаунт пользователя неактивен');
     }
 
     // Проверяем пароль
     const isPasswordValid = await bcrypt.compare(loginDto.password, user.password);
     if (!isPasswordValid) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('Неверный email или пароль');
     }
 
     // Обновляем время последнего входа
@@ -113,14 +113,14 @@ export class AuthService {
 
       const user = await this.usersService.findById(payload.sub);
       if (!user || user.status !== 'active') {
-        throw new UnauthorizedException('Invalid refresh token');
+        throw new UnauthorizedException('Недействительный refresh token');
       }
 
       const accessToken = this.generateAccessToken(user);
 
       return { accessToken };
     } catch (error) {
-      throw new UnauthorizedException('Invalid refresh token');
+      throw new UnauthorizedException('Недействительный refresh token');
     }
   }
 
