@@ -10,6 +10,8 @@ import { RegisterPage } from './pages/auth/RegisterPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { ClientsPage } from './pages/clients/ClientsPage';
 import { ClientCardPage } from './pages/clients/ClientCardPage';
+import { TicketsPage } from './pages/tickets/TicketsPage';
+import { TicketDetailPage } from './pages/tickets/TicketDetailPage';
 
 // Компонент для редиректа авторизованных пользователей
 const PublicRoute = ({ children }: { children: ReactNode }) => {
@@ -70,6 +72,22 @@ function App() {
               element={
                 <ProtectedRoute>
                   <ClientCardPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/tickets"
+              element={
+                <ProtectedRoute>
+                  <TicketsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/tickets/:id"
+              element={
+                <ProtectedRoute>
+                  <TicketDetailPage />
                 </ProtectedRoute>
               }
             />
