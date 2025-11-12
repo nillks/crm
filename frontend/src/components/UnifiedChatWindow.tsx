@@ -98,6 +98,12 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({ clientId, 
       }
 
       const response = await messagesService.getMessages(params);
+      
+      console.log('Loaded messages:', {
+        total: response.data.length,
+        messages: response.data,
+        params,
+      });
 
       if (append) {
         setMessages((prev) => [...prev, ...response.data]);
@@ -146,7 +152,15 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({ clientId, 
     if (!clientId) return;
     
     try {
-      const clientData = await clientsService.getClientById(clientId);
+      const clientData = await clientsService.getClientById(clientId, 'messages');
+      console.log('Loaded client data:', {
+        client: clientData,
+        messagesCount: clientData.messages?.length || 0,
+        whatsappId: clientData.whatsappId,
+        telegramId: clientData.telegramId,
+        instagramId: clientData.instagramId,
+        phone: clientData.phone,
+      });
       setClient(clientData);
       
       // Определяем доступные каналы
@@ -168,6 +182,7 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({ clientId, 
       }
     } catch (err: any) {
       console.error('Error loading client data:', err);
+      setError(getErrorMessage(err));
     }
   };
 
