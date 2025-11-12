@@ -13,6 +13,9 @@ import { ClientCardPage } from './pages/clients/ClientCardPage';
 import { TicketsPage } from './pages/tickets/TicketsPage';
 import { TicketDetailPage } from './pages/tickets/TicketDetailPage';
 import { ChatPage } from './pages/chat/ChatPage';
+import { AISettingsPage } from './pages/settings/AISettingsPage';
+import { CallsPage } from './pages/calls/CallsPage';
+import { AnalyticsPage } from './pages/analytics/AnalyticsPage';
 
 // Компонент для редиректа авторизованных пользователей
 const PublicRoute = ({ children }: { children: ReactNode }) => {
@@ -97,6 +100,30 @@ function App() {
               element={
                 <ProtectedRoute>
                   <ChatPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/settings/ai"
+              element={
+                <ProtectedRoute>
+                  <AISettingsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/calls"
+              element={
+                <ProtectedRoute>
+                  <CallsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/analytics"
+              element={
+                <ProtectedRoute>
+                  <AnalyticsPage />
                 </ProtectedRoute>
               }
             />

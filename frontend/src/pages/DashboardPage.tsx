@@ -10,7 +10,16 @@ import {
   Avatar,
   Grid,
 } from '@mui/material';
-import { Logout, Dashboard as DashboardIcon, Person, Assignment, Chat } from '@mui/icons-material';
+import {
+  Logout,
+  Dashboard as DashboardIcon,
+  Person,
+  Assignment,
+  Chat,
+  SmartToy,
+  Phone,
+  Analytics,
+} from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 
 export const DashboardPage: React.FC = () => {
@@ -185,6 +194,142 @@ export const DashboardPage: React.FC = () => {
                   sx={{ borderRadius: 2 }}
                 >
                   Открыть чат
+                </Button>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* Новые карточки для будущих функций */}
+          <Grid item xs={12} md={4}>
+            <Card
+              sx={{
+                borderRadius: 3,
+                height: '100%',
+                cursor: 'pointer',
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                color: 'white',
+                transition: 'transform 0.2s, boxShadow 0.2s',
+                '&:hover': {
+                  transform: 'translateY(-4px)',
+                  boxShadow: 6,
+                },
+              }}
+              onClick={() => navigate('/settings/ai')}
+            >
+              <CardContent sx={{ p: 3 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+                  <SmartToy sx={{ fontSize: 40 }} />
+                  <Typography variant="h6" fontWeight={600}>
+                    Настройки AI-агента
+                  </Typography>
+                </Box>
+                <Typography variant="body2" sx={{ mb: 2, opacity: 0.9 }}>
+                  Настройка AI-агента для автоматизации ответов клиентам
+                </Typography>
+                <Button
+                  variant="contained"
+                  startIcon={<SmartToy />}
+                  fullWidth
+                  sx={{
+                    borderRadius: 2,
+                    bgcolor: 'rgba(255, 255, 255, 0.2)',
+                    color: 'white',
+                    '&:hover': {
+                      bgcolor: 'rgba(255, 255, 255, 0.3)',
+                    },
+                  }}
+                >
+                  Открыть настройки
+                </Button>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          <Grid item xs={12} md={4}>
+            <Card
+              sx={{
+                borderRadius: 3,
+                height: '100%',
+                cursor: 'pointer',
+                background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                color: 'white',
+                transition: 'transform 0.2s, boxShadow 0.2s',
+                '&:hover': {
+                  transform: 'translateY(-4px)',
+                  boxShadow: 6,
+                },
+              }}
+              onClick={() => navigate('/calls')}
+            >
+              <CardContent sx={{ p: 3 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+                  <Phone sx={{ fontSize: 40 }} />
+                  <Typography variant="h6" fontWeight={600}>
+                    Прослушивание звонков
+                  </Typography>
+                </Box>
+                <Typography variant="body2" sx={{ mb: 2, opacity: 0.9 }}>
+                  Просмотр и прослушивание записей звонков с фильтрами
+                </Typography>
+                <Button
+                  variant="contained"
+                  startIcon={<Phone />}
+                  fullWidth
+                  sx={{
+                    borderRadius: 2,
+                    bgcolor: 'rgba(255, 255, 255, 0.2)',
+                    color: 'white',
+                    '&:hover': {
+                      bgcolor: 'rgba(255, 255, 255, 0.3)',
+                    },
+                  }}
+                >
+                  Открыть звонки
+                </Button>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          <Grid item xs={12} md={4}>
+            <Card
+              sx={{
+                borderRadius: 3,
+                height: '100%',
+                cursor: 'pointer',
+                background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+                color: 'white',
+                transition: 'transform 0.2s, boxShadow 0.2s',
+                '&:hover': {
+                  transform: 'translateY(-4px)',
+                  boxShadow: 6,
+                },
+              }}
+              onClick={() => navigate('/analytics')}
+            >
+              <CardContent sx={{ p: 3 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+                  <Analytics sx={{ fontSize: 40 }} />
+                  <Typography variant="h6" fontWeight={600}>
+                    Дашборд аналитики
+                  </Typography>
+                </Box>
+                <Typography variant="body2" sx={{ mb: 2, opacity: 0.9 }}>
+                  Графики, метрики и аналитика работы CRM системы
+                </Typography>
+                <Button
+                  variant="contained"
+                  startIcon={<Analytics />}
+                  fullWidth
+                  sx={{
+                    borderRadius: 2,
+                    bgcolor: 'rgba(255, 255, 255, 0.2)',
+                    color: 'white',
+                    '&:hover': {
+                      bgcolor: 'rgba(255, 255, 255, 0.3)',
+                    },
+                  }}
+                >
+                  Открыть аналитику
                 </Button>
               </CardContent>
             </Card>
