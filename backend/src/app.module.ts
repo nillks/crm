@@ -9,6 +9,7 @@ import { HealthService } from './health/health.service';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { RolesModule } from './roles/roles.module';
+import { ClientsModule } from './clients/clients.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { AllEntities } from './entities';
 import { TestPermissionsController } from './roles/test-permissions.controller';
@@ -40,6 +41,7 @@ import { TestPermissionsController } from './roles/test-permissions.controller';
     AuthModule,
     UsersModule,
     RolesModule,
+    ClientsModule,
   ],
   controllers: [AppController, HealthController, TestPermissionsController],
   providers: [
