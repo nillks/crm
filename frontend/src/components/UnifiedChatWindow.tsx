@@ -161,7 +161,10 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({ clientId, 
       setMessages([]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clientId, ticketId, channelFilter, statusFilter]);
+  }, [clientId, ticketId]);
+  
+  // Отдельный эффект для перезагрузки при изменении фильтров (только для отображения, не перезагружаем с сервера)
+  // Фильтры применяются на клиенте, поэтому не нужно перезагружать данные
 
   // Автоматическое обновление сообщений каждые 5 секунд
   useEffect(() => {
