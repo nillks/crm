@@ -10,11 +10,9 @@ import {
   IconButton,
   CircularProgress,
   Alert,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
   Tooltip,
+  ToggleButton,
+  ToggleButtonGroup,
 } from '@mui/material';
 import {
   Send,
@@ -22,9 +20,11 @@ import {
   Telegram,
   Instagram,
   Refresh,
+  FilterList,
 } from '@mui/icons-material';
 import { messagesService, type Message, MessageChannel, MessageDirection } from '../services/messages.service';
 import { getErrorMessage } from '../utils/errorMessages';
+import { clientsService, type Client } from '../services/clients.service';
 
 interface UnifiedChatWindowProps {
   clientId?: string;
@@ -54,10 +54,12 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({ clientId, 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState('');
-  const [selectedChannel, setSelectedChannel] = useState<MessageChannel>(MessageChannel.WHATSAPP);
+  const [selectedChannel, setSelectedChannel] = useState<MessageChannel | null>(null);
   const [channelFilter, setChannelFilter] = useState<MessageChannel | 'all'>('all');
   const [sending, setSending] = useState(false);
   const [conversationStatus, setConversationStatus] = useState<'active' | 'closed' | 'needs_reply'>('active');
+  const [client, setClient] = useState<Client | null>(null);
+  const [availableChannels, setAvailableChannels] = useState<MessageChannel[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -128,12 +130,49 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({ clientId, 
   };
 
   useEffect(() => {
-    loadMessages(1, false);
+    if (clientId) {
+      loadClientData();
+      loadMessages(1, false);
+    } else {
+      setClient(null);
+      setAvailableChannels([]);
+      setSelectedChannel(null);
+      setMessages([]);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientId, ticketId, channelFilter]);
 
+  const loadClientData = async () => {
+    if (!clientId) return;
+    
+    try {
+      const clientData = await clientsService.getClientById(clientId);
+      setClient(clientData);
+      
+      // Определяем доступные каналы
+      const channels: MessageChannel[] = [];
+      if (clientData.whatsappId || clientData.phone) {
+        channels.push(MessageChannel.WHATSAPP);
+      }
+      if (clientData.telegramId) {
+        channels.push(MessageChannel.TELEGRAM);
+      }
+      if (clientData.instagramId) {
+        channels.push(MessageChannel.INSTAGRAM);
+      }
+      setAvailableChannels(channels);
+      
+      // Автоматически выбираем первый доступный канал
+      if (channels.length > 0 && !selectedChannel) {
+        setSelectedChannel(channels[0]);
+      }
+    } catch (err: any) {
+      console.error('Error loading client data:', err);
+    }
+  };
+
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || !clientId) {
+    if (!newMessage.trim() || !clientId || !selectedChannel) {
       return;
     }
 
@@ -141,9 +180,13 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({ clientId, 
       setSending(true);
       setError(null);
 
-      // Получаем данные клиента для отправки сообщения
-      const { clientsService } = await import('../services/clients.service');
-      const client = await clientsService.getClientById(clientId);
+      if (!client) {
+        await loadClientData();
+      }
+
+      if (!client) {
+        throw new Error('Не удалось загрузить данные клиента');
+      }
 
       const messageText = newMessage.trim();
 
@@ -243,11 +286,36 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({ clientId, 
           bgcolor: 'background.paper',
         }}
       >
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5, flexWrap: 'wrap', gap: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
             <Typography variant="h6" fontWeight={600} sx={{ color: 'text.primary' }}>
-              Единое окно чата
+              {client ? `${client.name} - Чат` : 'Единое окно чата'}
             </Typography>
+            {client && availableChannels.length > 0 && (
+              <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center', flexWrap: 'wrap' }}>
+                <Typography variant="caption" color="text.secondary">
+                  Доступно:
+                </Typography>
+                {availableChannels.map((channel) => {
+                  const Icon = CHANNEL_ICONS[channel];
+                  return (
+                    <Tooltip key={channel} title={CHANNEL_NAMES[channel]}>
+                      <Chip
+                        icon={<Icon sx={{ fontSize: 14 }} />}
+                        label={CHANNEL_NAMES[channel]}
+                        size="small"
+                        sx={{
+                          height: 24,
+                          fontSize: '0.7rem',
+                          bgcolor: CHANNEL_COLORS[channel],
+                          color: 'white',
+                        }}
+                      />
+                    </Tooltip>
+                  );
+                })}
+              </Box>
+            )}
             {conversationStatus === 'needs_reply' && (
               <Chip
                 label="Требует ответа"
@@ -294,39 +362,59 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({ clientId, 
 
         {/* Filters */}
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
-          <FormControl size="small" sx={{ minWidth: 150 }}>
-            <InputLabel>Канал</InputLabel>
-            <Select
-              value={channelFilter}
-              label="Канал"
-              onChange={(e) => setChannelFilter(e.target.value as MessageChannel | 'all')}
-              sx={{ borderRadius: 2 }}
-            >
-              <MenuItem value="all">Все каналы</MenuItem>
-              <MenuItem value={MessageChannel.WHATSAPP}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  {getChannelIcon(MessageChannel.WHATSAPP)}
-                  {CHANNEL_NAMES[MessageChannel.WHATSAPP]}
-                </Box>
-              </MenuItem>
-              <MenuItem value={MessageChannel.TELEGRAM}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  {getChannelIcon(MessageChannel.TELEGRAM)}
-                  {CHANNEL_NAMES[MessageChannel.TELEGRAM]}
-                </Box>
-              </MenuItem>
-              <MenuItem value={MessageChannel.INSTAGRAM}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  {getChannelIcon(MessageChannel.INSTAGRAM)}
-                  {CHANNEL_NAMES[MessageChannel.INSTAGRAM]}
-                </Box>
-              </MenuItem>
-            </Select>
-          </FormControl>
-          {filteredMessages.length > 0 && (
-            <Typography variant="body2" color="text.secondary">
-              Сообщений: {filteredMessages.length}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <FilterList sx={{ fontSize: 18, color: 'text.secondary' }} />
+            <Typography variant="body2" color="text.secondary" sx={{ mr: 1 }}>
+              Фильтр:
             </Typography>
+            <ToggleButtonGroup
+              value={channelFilter}
+              exclusive
+              onChange={(_, value) => {
+                if (value !== null) {
+                  setChannelFilter(value);
+                }
+              }}
+              size="small"
+              sx={{
+                '& .MuiToggleButton-root': {
+                  px: 2,
+                  py: 0.5,
+                  textTransform: 'none',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                },
+              }}
+            >
+              <ToggleButton value="all">
+                <Typography variant="body2">Все</Typography>
+              </ToggleButton>
+              <ToggleButton value={MessageChannel.WHATSAPP}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  {getChannelIcon(MessageChannel.WHATSAPP)}
+                  <Typography variant="body2">{CHANNEL_NAMES[MessageChannel.WHATSAPP]}</Typography>
+                </Box>
+              </ToggleButton>
+              <ToggleButton value={MessageChannel.TELEGRAM}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  {getChannelIcon(MessageChannel.TELEGRAM)}
+                  <Typography variant="body2">{CHANNEL_NAMES[MessageChannel.TELEGRAM]}</Typography>
+                </Box>
+              </ToggleButton>
+              <ToggleButton value={MessageChannel.INSTAGRAM}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  {getChannelIcon(MessageChannel.INSTAGRAM)}
+                  <Typography variant="body2">{CHANNEL_NAMES[MessageChannel.INSTAGRAM]}</Typography>
+                </Box>
+              </ToggleButton>
+            </ToggleButtonGroup>
+          </Box>
+          {filteredMessages.length > 0 && (
+            <Chip
+              label={`${filteredMessages.length} сообщений`}
+              size="small"
+              sx={{ bgcolor: 'action.selected' }}
+            />
           )}
         </Box>
       </Paper>
@@ -364,9 +452,19 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({ clientId, 
           <Alert severity="error">{error}</Alert>
         ) : filteredMessages.length === 0 ? (
           <Box sx={{ textAlign: 'center', py: 4 }}>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" color="text.secondary" gutterBottom>
               Нет сообщений
             </Typography>
+            {channelFilter !== 'all' && (
+              <Typography variant="caption" color="text.secondary">
+                Попробуйте изменить фильтр или выбрать другого клиента
+              </Typography>
+            )}
+            {clientId && messages.length === 0 && (
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                Начните переписку, отправив первое сообщение
+              </Typography>
+            )}
           </Box>
         ) : (
           <>
@@ -521,45 +619,74 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({ clientId, 
               {error}
             </Alert>
           )}
-          <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-end' }}>
-            <FormControl size="small" sx={{ minWidth: 140 }}>
-              <Select
+          
+          {/* Выбор канала для отправки */}
+          {availableChannels.length > 0 && (
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
+                Отправить через:
+              </Typography>
+              <ToggleButtonGroup
                 value={selectedChannel}
-                onChange={(e) => setSelectedChannel(e.target.value as MessageChannel)}
-                sx={{ 
-                  height: 48,
-                  borderRadius: 2,
+                exclusive
+                onChange={(_, value) => {
+                  if (value !== null) {
+                    setSelectedChannel(value);
+                  }
+                }}
+                size="small"
+                fullWidth
+                sx={{
+                  '& .MuiToggleButton-root': {
+                    flex: 1,
+                    py: 1.5,
+                    textTransform: 'none',
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    '&.Mui-selected': {
+                      bgcolor: 'primary.main',
+                      color: 'white',
+                      '&:hover': {
+                        bgcolor: 'primary.dark',
+                      },
+                    },
+                  },
                 }}
               >
-                <MenuItem value={MessageChannel.WHATSAPP}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    {getChannelIcon(MessageChannel.WHATSAPP)}
-                    {CHANNEL_NAMES[MessageChannel.WHATSAPP]}
-                  </Box>
-                </MenuItem>
-                <MenuItem value={MessageChannel.TELEGRAM}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    {getChannelIcon(MessageChannel.TELEGRAM)}
-                    {CHANNEL_NAMES[MessageChannel.TELEGRAM]}
-                  </Box>
-                </MenuItem>
-                <MenuItem value={MessageChannel.INSTAGRAM}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    {getChannelIcon(MessageChannel.INSTAGRAM)}
-                    {CHANNEL_NAMES[MessageChannel.INSTAGRAM]}
-                  </Box>
-                </MenuItem>
-              </Select>
-            </FormControl>
+                {availableChannels.map((channel) => (
+                  <ToggleButton key={channel} value={channel}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      {getChannelIcon(channel)}
+                      <Typography variant="body2" fontWeight={500}>
+                        {CHANNEL_NAMES[channel]}
+                      </Typography>
+                    </Box>
+                  </ToggleButton>
+                ))}
+              </ToggleButtonGroup>
+            </Box>
+          )}
+          
+          {availableChannels.length === 0 && (
+            <Alert severity="warning" sx={{ mb: 2 }}>
+              У клиента не настроены каналы связи. Добавьте WhatsApp, Telegram или Instagram ID в карточке клиента.
+            </Alert>
+          )}
+          
+          <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-end' }}>
             <TextField
               fullWidth
               multiline
               maxRows={4}
-              placeholder="Введите сообщение..."
+              placeholder={
+                selectedChannel
+                  ? `Введите сообщение для ${CHANNEL_NAMES[selectedChannel]}...`
+                  : 'Выберите канал для отправки'
+              }
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
               onKeyPress={handleKeyPress}
-              disabled={sending}
+              disabled={sending || !selectedChannel || availableChannels.length === 0}
               sx={{ 
                 '& .MuiOutlinedInput-root': { 
                   borderRadius: 2,
@@ -570,7 +697,7 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({ clientId, 
             <Button
               variant="contained"
               onClick={handleSendMessage}
-              disabled={!newMessage.trim() || sending}
+              disabled={!newMessage.trim() || sending || !selectedChannel || availableChannels.length === 0}
               startIcon={sending ? <CircularProgress size={18} color="inherit" /> : <Send />}
               sx={{ 
                 minWidth: 120, 
