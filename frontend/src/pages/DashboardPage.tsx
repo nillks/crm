@@ -10,7 +10,7 @@ import {
   Avatar,
   Grid,
 } from '@mui/material';
-import { Logout, Dashboard as DashboardIcon, Person } from '@mui/icons-material';
+import { Logout, Dashboard as DashboardIcon, Person, Assignment } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 
 export const DashboardPage: React.FC = () => {
@@ -89,7 +89,7 @@ export const DashboardPage: React.FC = () => {
 
         {/* Dashboard Content */}
         <Grid container spacing={3}>
-          <Grid item xs={12} md={6}>
+          <Grid item xs={12} md={4}>
             <Card sx={{ borderRadius: 3, height: '100%' }}>
               <CardContent sx={{ p: 3 }}>
                 <Typography variant="h6" gutterBottom fontWeight={600}>
@@ -118,7 +118,7 @@ export const DashboardPage: React.FC = () => {
             </Card>
           </Grid>
 
-          <Grid item xs={12} md={6}>
+          <Grid item xs={12} md={4}>
             <Card sx={{ borderRadius: 3, height: '100%', cursor: 'pointer' }} onClick={() => navigate('/clients')}>
               <CardContent sx={{ p: 3 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
@@ -137,6 +137,30 @@ export const DashboardPage: React.FC = () => {
                   sx={{ borderRadius: 2 }}
                 >
                   Перейти к клиентам
+                </Button>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          <Grid item xs={12} md={4}>
+            <Card sx={{ borderRadius: 3, height: '100%', cursor: 'pointer' }} onClick={() => navigate('/tickets')}>
+              <CardContent sx={{ p: 3 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+                  <Assignment sx={{ fontSize: 40, color: 'primary.main' }} />
+                  <Typography variant="h6" fontWeight={600}>
+                    Тикеты
+                  </Typography>
+                </Box>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  Просмотр и управление тикетами, работа с комментариями
+                </Typography>
+                <Button
+                  variant="contained"
+                  startIcon={<Assignment />}
+                  fullWidth
+                  sx={{ borderRadius: 2 }}
+                >
+                  Перейти к тикетам
                 </Button>
               </CardContent>
             </Card>
