@@ -8,6 +8,8 @@ import { theme } from './theme/theme';
 import { LoginPage } from './pages/auth/LoginPage';
 import { RegisterPage } from './pages/auth/RegisterPage';
 import { DashboardPage } from './pages/DashboardPage';
+import { ClientsPage } from './pages/clients/ClientsPage';
+import { ClientCardPage } from './pages/clients/ClientCardPage';
 
 // Компонент для редиректа авторизованных пользователей
 const PublicRoute = ({ children }: { children: ReactNode }) => {
@@ -52,6 +54,22 @@ function App() {
               element={
                 <ProtectedRoute>
                   <DashboardPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/clients"
+              element={
+                <ProtectedRoute>
+                  <ClientsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/clients/:id"
+              element={
+                <ProtectedRoute>
+                  <ClientCardPage />
                 </ProtectedRoute>
               }
             />
