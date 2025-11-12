@@ -12,6 +12,8 @@ import { RolesModule } from './roles/roles.module';
 import { ClientsModule } from './clients/clients.module';
 import { TicketsModule } from './tickets/tickets.module';
 import { WhatsAppModule } from './whatsapp/whatsapp.module';
+import { TelegramModule } from './telegram/telegram.module';
+import { InstagramModule } from './instagram/instagram.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { AllEntities } from './entities';
 import { TestPermissionsController } from './roles/test-permissions.controller';
@@ -46,6 +48,8 @@ import { TestPermissionsController } from './roles/test-permissions.controller';
     ClientsModule,
     TicketsModule,
     WhatsAppModule,
+    TelegramModule,
+    InstagramModule,
   ],
   controllers: [AppController, HealthController, TestPermissionsController],
   providers: [
