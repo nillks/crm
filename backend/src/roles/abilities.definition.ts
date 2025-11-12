@@ -65,7 +65,8 @@ export function defineAbilityFor(role: RoleName): AppAbility {
       can(Action.Update, Subject.Message);
       can(Action.Update, Subject.Task);
 
-      // - Удалять только свои комментарии
+      // - Удалять клиентов и свои комментарии
+      can(Action.Delete, Subject.Client);
       can(Action.Delete, Subject.Comment);
 
       // - Не могут управлять пользователями, ролями, настройками AI
