@@ -56,6 +56,7 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({ clientId, 
   const [newMessage, setNewMessage] = useState('');
   const [selectedChannel, setSelectedChannel] = useState<MessageChannel | null>(null);
   const [channelFilter, setChannelFilter] = useState<MessageChannel | 'all'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'needs_reply' | 'replied' | 'active' | 'closed'>('all');
   const [sending, setSending] = useState(false);
   const [conversationStatus, setConversationStatus] = useState<'active' | 'closed' | 'needs_reply'>('active');
   const [client, setClient] = useState<Client | null>(null);
@@ -103,7 +104,21 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({ clientId, 
         total: response.data.length,
         messages: response.data,
         params,
+        clientId,
       });
+      
+      // Если сообщений нет, но клиент выбран - проверяем данные клиента
+      if (response.data.length === 0 && clientId) {
+        console.warn('No messages found for client:', clientId);
+        console.log('Trying to reload client data...');
+        // Перезагружаем данные клиента для проверки
+        const clientData = await clientsService.getClientById(clientId, 'messages');
+        console.log('Client data with messages:', {
+          client: clientData,
+          messagesCount: clientData.messages?.length || 0,
+          messages: clientData.messages,
+        });
+      }
 
       if (append) {
         setMessages((prev) => [...prev, ...response.data]);
@@ -146,7 +161,19 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({ clientId, 
       setMessages([]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clientId, ticketId, channelFilter]);
+  }, [clientId, ticketId, channelFilter, statusFilter]);
+
+  // Автоматическое обновление сообщений каждые 5 секунд
+  useEffect(() => {
+    if (!clientId) return;
+
+    const interval = setInterval(() => {
+      loadMessages(1, false);
+    }, 5000); // Обновляем каждые 5 секунд
+
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clientId]);
 
   const loadClientData = async () => {
     if (!clientId) return;
@@ -176,9 +203,18 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({ clientId, 
       }
       setAvailableChannels(channels);
       
-      // Автоматически выбираем первый доступный канал
-      if (channels.length > 0 && !selectedChannel) {
+      // Автоматически выбираем канал:
+      // - Если канал один - выбираем его автоматически
+      // - Если каналов несколько - выбираем первый, если еще не выбран
+      if (channels.length === 1) {
+        // Если доступен только один канал - автоматически выбираем его
         setSelectedChannel(channels[0]);
+      } else if (channels.length > 1 && !selectedChannel) {
+        // Если каналов несколько и еще не выбран - выбираем первый
+        setSelectedChannel(channels[0]);
+      } else if (channels.length === 0) {
+        // Если каналов нет - сбрасываем выбор
+        setSelectedChannel(null);
       }
     } catch (err: any) {
       console.error('Error loading client data:', err);
@@ -260,9 +296,50 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({ clientId, 
     }
   };
 
-  const filteredMessages = channelFilter === 'all' 
+  // Фильтрация по каналу
+  let filteredMessages = channelFilter === 'all' 
     ? messages 
     : messages.filter((msg) => msg.channel === channelFilter);
+  
+  // Фильтрация по статусу разговора
+  if (statusFilter !== 'all') {
+    if (statusFilter === 'needs_reply') {
+      // Требует ответа - есть непрочитанные входящие сообщения
+      filteredMessages = filteredMessages.filter((msg) => 
+        msg.direction === MessageDirection.INBOUND && !msg.isRead
+      );
+    } else if (statusFilter === 'replied') {
+      // Ответили - последнее сообщение исходящее
+      if (filteredMessages.length > 0) {
+        const lastMessage = filteredMessages[filteredMessages.length - 1];
+        filteredMessages = lastMessage.direction === MessageDirection.OUTBOUND 
+          ? filteredMessages 
+          : [];
+      } else {
+        filteredMessages = [];
+      }
+    } else if (statusFilter === 'active') {
+      // Активен - последнее сообщение входящее
+      if (filteredMessages.length > 0) {
+        const lastMessage = filteredMessages[filteredMessages.length - 1];
+        filteredMessages = lastMessage.direction === MessageDirection.INBOUND 
+          ? filteredMessages 
+          : [];
+      } else {
+        filteredMessages = [];
+      }
+    } else if (statusFilter === 'closed') {
+      // Завершён - последнее сообщение исходящее
+      if (filteredMessages.length > 0) {
+        const lastMessage = filteredMessages[filteredMessages.length - 1];
+        filteredMessages = lastMessage.direction === MessageDirection.OUTBOUND 
+          ? filteredMessages 
+          : [];
+      } else {
+        filteredMessages = [];
+      }
+    }
+  }
 
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
@@ -377,10 +454,10 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({ clientId, 
 
         {/* Filters */}
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
             <FilterList sx={{ fontSize: 18, color: 'text.secondary' }} />
             <Typography variant="body2" color="text.secondary" sx={{ mr: 1 }}>
-              Фильтр:
+              Канал:
             </Typography>
             <ToggleButtonGroup
               value={channelFilter}
@@ -424,6 +501,48 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({ clientId, 
               </ToggleButton>
             </ToggleButtonGroup>
           </Box>
+          
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography variant="body2" color="text.secondary">
+              Статус:
+            </Typography>
+            <ToggleButtonGroup
+              value={statusFilter}
+              exclusive
+              onChange={(_, value) => {
+                if (value !== null) {
+                  setStatusFilter(value);
+                }
+              }}
+              size="small"
+              sx={{
+                '& .MuiToggleButton-root': {
+                  px: 2,
+                  py: 0.5,
+                  textTransform: 'none',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                },
+              }}
+            >
+              <ToggleButton value="all">
+                <Typography variant="body2">Все</Typography>
+              </ToggleButton>
+              <ToggleButton value="needs_reply">
+                <Typography variant="body2" color="error">Требует ответа</Typography>
+              </ToggleButton>
+              <ToggleButton value="replied">
+                <Typography variant="body2" color="success">Ответили</Typography>
+              </ToggleButton>
+              <ToggleButton value="active">
+                <Typography variant="body2" color="info">Активен</Typography>
+              </ToggleButton>
+              <ToggleButton value="closed">
+                <Typography variant="body2">Завершён</Typography>
+              </ToggleButton>
+            </ToggleButtonGroup>
+          </Box>
+          
           {filteredMessages.length > 0 && (
             <Chip
               label={`${filteredMessages.length} сообщений`}
@@ -635,8 +754,8 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({ clientId, 
             </Alert>
           )}
           
-          {/* Выбор канала для отправки */}
-          {availableChannels.length > 0 && (
+          {/* Выбор канала для отправки - показываем только если каналов больше одного */}
+          {availableChannels.length > 1 && (
             <Box sx={{ mb: 2 }}>
               <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
                 Отправить через:
@@ -682,6 +801,25 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({ clientId, 
             </Box>
           )}
           
+          {/* Показываем выбранный канал, если он один */}
+          {availableChannels.length === 1 && selectedChannel && (
+            <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography variant="caption" color="text.secondary">
+                Отправка через:
+              </Typography>
+              <Chip
+                icon={getChannelIcon(selectedChannel)}
+                label={CHANNEL_NAMES[selectedChannel]}
+                size="small"
+                sx={{
+                  bgcolor: CHANNEL_COLORS[selectedChannel],
+                  color: 'white',
+                  fontWeight: 500,
+                }}
+              />
+            </Box>
+          )}
+          
           {availableChannels.length === 0 && (
             <Alert severity="warning" sx={{ mb: 2 }}>
               У клиента не настроены каналы связи. Добавьте WhatsApp, Telegram или Instagram ID в карточке клиента.
@@ -696,6 +834,8 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({ clientId, 
               placeholder={
                 selectedChannel
                   ? `Введите сообщение для ${CHANNEL_NAMES[selectedChannel]}...`
+                  : availableChannels.length === 0
+                  ? 'Настройте каналы связи для клиента'
                   : 'Выберите канал для отправки'
               }
               value={newMessage}
