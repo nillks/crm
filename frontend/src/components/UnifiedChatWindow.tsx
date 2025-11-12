@@ -305,40 +305,32 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({ clientId, 
     : messages.filter((msg) => msg.channel === channelFilter);
   
   // Фильтрация по статусу разговора
-  if (statusFilter !== 'all') {
+  // Примечание: фильтр работает на уровне всего списка сообщений клиента
+  // Показываем все сообщения, если статус соответствует последнему сообщению
+  if (statusFilter !== 'all' && filteredMessages.length > 0) {
+    const lastMessage = filteredMessages[filteredMessages.length - 1];
+    const hasUnreadInbound = filteredMessages.some((msg) => 
+      msg.direction === MessageDirection.INBOUND && !msg.isRead
+    );
+    
     if (statusFilter === 'needs_reply') {
-      // Требует ответа - есть непрочитанные входящие сообщения
-      filteredMessages = filteredMessages.filter((msg) => 
-        msg.direction === MessageDirection.INBOUND && !msg.isRead
-      );
+      // Требует ответа - последнее сообщение входящее и непрочитанное
+      if (!(lastMessage.direction === MessageDirection.INBOUND && !lastMessage.isRead)) {
+        filteredMessages = [];
+      }
     } else if (statusFilter === 'replied') {
       // Ответили - последнее сообщение исходящее
-      if (filteredMessages.length > 0) {
-        const lastMessage = filteredMessages[filteredMessages.length - 1];
-        filteredMessages = lastMessage.direction === MessageDirection.OUTBOUND 
-          ? filteredMessages 
-          : [];
-      } else {
+      if (lastMessage.direction !== MessageDirection.OUTBOUND) {
         filteredMessages = [];
       }
     } else if (statusFilter === 'active') {
-      // Активен - последнее сообщение входящее
-      if (filteredMessages.length > 0) {
-        const lastMessage = filteredMessages[filteredMessages.length - 1];
-        filteredMessages = lastMessage.direction === MessageDirection.INBOUND 
-          ? filteredMessages 
-          : [];
-      } else {
+      // Активен - есть непрочитанные входящие сообщения
+      if (!hasUnreadInbound) {
         filteredMessages = [];
       }
     } else if (statusFilter === 'closed') {
-      // Завершён - последнее сообщение исходящее
-      if (filteredMessages.length > 0) {
-        const lastMessage = filteredMessages[filteredMessages.length - 1];
-        filteredMessages = lastMessage.direction === MessageDirection.OUTBOUND 
-          ? filteredMessages 
-          : [];
-      } else {
+      // Завершён - последнее сообщение исходящее и нет непрочитанных
+      if (!(lastMessage.direction === MessageDirection.OUTBOUND && !hasUnreadInbound)) {
         filteredMessages = [];
       }
     }
