@@ -128,22 +128,43 @@ export const DashboardPage: React.FC = () => {
           </Grid>
 
           <Grid item xs={12} md={4}>
-            <Card sx={{ borderRadius: 3, height: '100%', cursor: 'pointer' }} onClick={() => navigate('/clients')}>
+            <Card
+              sx={{
+                borderRadius: 3,
+                height: '100%',
+                cursor: 'pointer',
+                background: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)',
+                color: 'white',
+                transition: 'transform 0.2s, boxShadow 0.2s',
+                '&:hover': {
+                  transform: 'translateY(-4px)',
+                  boxShadow: 6,
+                },
+              }}
+              onClick={() => navigate('/clients')}
+            >
               <CardContent sx={{ p: 3 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-                  <Person sx={{ fontSize: 40, color: 'primary.main' }} />
+                  <Person sx={{ fontSize: 40 }} />
                   <Typography variant="h6" fontWeight={600}>
                     Клиенты
                   </Typography>
                 </Box>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                <Typography variant="body2" sx={{ mb: 2, opacity: 0.9 }}>
                   Управление клиентами, просмотр карточек и работа с тикетами
                 </Typography>
                 <Button
                   variant="contained"
                   startIcon={<Person />}
                   fullWidth
-                  sx={{ borderRadius: 2 }}
+                  sx={{
+                    borderRadius: 2,
+                    bgcolor: 'rgba(255, 255, 255, 0.2)',
+                    color: 'white',
+                    '&:hover': {
+                      bgcolor: 'rgba(255, 255, 255, 0.3)',
+                    },
+                  }}
                 >
                   Перейти к клиентам
                 </Button>
@@ -152,22 +173,43 @@ export const DashboardPage: React.FC = () => {
           </Grid>
 
           <Grid item xs={12} md={4}>
-            <Card sx={{ borderRadius: 3, height: '100%', cursor: 'pointer' }} onClick={() => navigate('/tickets')}>
+            <Card
+              sx={{
+                borderRadius: 3,
+                height: '100%',
+                cursor: 'pointer',
+                background: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
+                color: 'white',
+                transition: 'transform 0.2s, boxShadow 0.2s',
+                '&:hover': {
+                  transform: 'translateY(-4px)',
+                  boxShadow: 6,
+                },
+              }}
+              onClick={() => navigate('/tickets')}
+            >
               <CardContent sx={{ p: 3 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-                  <Assignment sx={{ fontSize: 40, color: 'primary.main' }} />
+                  <Assignment sx={{ fontSize: 40 }} />
                   <Typography variant="h6" fontWeight={600}>
                     Тикеты
                   </Typography>
                 </Box>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                <Typography variant="body2" sx={{ mb: 2, opacity: 0.9 }}>
                   Просмотр и управление тикетами, работа с комментариями
                 </Typography>
                 <Button
                   variant="contained"
                   startIcon={<Assignment />}
                   fullWidth
-                  sx={{ borderRadius: 2 }}
+                  sx={{
+                    borderRadius: 2,
+                    bgcolor: 'rgba(255, 255, 255, 0.2)',
+                    color: 'white',
+                    '&:hover': {
+                      bgcolor: 'rgba(255, 255, 255, 0.3)',
+                    },
+                  }}
                 >
                   Перейти к тикетам
                 </Button>
@@ -176,22 +218,43 @@ export const DashboardPage: React.FC = () => {
           </Grid>
 
           <Grid item xs={12} md={4}>
-            <Card sx={{ borderRadius: 3, height: '100%', cursor: 'pointer' }} onClick={() => navigate('/chat')}>
+            <Card
+              sx={{
+                borderRadius: 3,
+                height: '100%',
+                cursor: 'pointer',
+                background: 'linear-gradient(135deg, #30cfd0 0%, #330867 100%)',
+                color: 'white',
+                transition: 'transform 0.2s, boxShadow 0.2s',
+                '&:hover': {
+                  transform: 'translateY(-4px)',
+                  boxShadow: 6,
+                },
+              }}
+              onClick={() => navigate('/chat')}
+            >
               <CardContent sx={{ p: 3 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-                  <Chat sx={{ fontSize: 40, color: 'primary.main' }} />
+                  <Chat sx={{ fontSize: 40 }} />
                   <Typography variant="h6" fontWeight={600}>
                     Единый чат
                   </Typography>
                 </Box>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                <Typography variant="body2" sx={{ mb: 2, opacity: 0.9 }}>
                   Переписка со всеми каналами связи: WhatsApp, Telegram, Instagram
                 </Typography>
                 <Button
                   variant="contained"
                   startIcon={<Chat />}
                   fullWidth
-                  sx={{ borderRadius: 2 }}
+                  sx={{
+                    borderRadius: 2,
+                    bgcolor: 'rgba(255, 255, 255, 0.2)',
+                    color: 'white',
+                    '&:hover': {
+                      bgcolor: 'rgba(255, 255, 255, 0.3)',
+                    },
+                  }}
                 >
                   Открыть чат
                 </Button>

@@ -27,6 +27,7 @@ import {
   Edit,
   Visibility,
   Person,
+  ArrowBack,
 } from '@mui/icons-material';
 import { clientsService } from '../../services/clients.service';
 import type { Client, FilterClientsDto } from '../../services/clients.service';
@@ -123,6 +124,15 @@ export const ClientsPage: React.FC = () => {
       <Container maxWidth="xl">
         {/* Header */}
         <Box sx={{ mb: 4 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+            <Button
+              startIcon={<ArrowBack />}
+              onClick={() => navigate('/')}
+              sx={{ borderRadius: 2 }}
+            >
+              Назад
+            </Button>
+          </Box>
           <Box
             sx={{
               display: 'flex',

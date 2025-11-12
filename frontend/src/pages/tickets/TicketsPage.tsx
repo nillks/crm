@@ -31,6 +31,7 @@ import {
   Add,
   Visibility,
   Assignment,
+  ArrowBack,
 } from '@mui/icons-material';
 import { ticketsService } from '../../services/tickets.service';
 import type { Ticket, FilterTicketsDto } from '../../services/tickets.service';
@@ -150,6 +151,15 @@ export const TicketsPage: React.FC = () => {
       <Container maxWidth="xl">
         {/* Header */}
         <Box sx={{ mb: 4 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+            <Button
+              startIcon={<ArrowBack />}
+              onClick={() => navigate('/')}
+              sx={{ borderRadius: 2 }}
+            >
+              Назад
+            </Button>
+          </Box>
           <Box
             sx={{
               display: 'flex',

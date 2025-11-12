@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import {
   Box,
   Container,
@@ -16,6 +16,7 @@ import {
   InputAdornment,
   CircularProgress,
   Alert,
+  Button,
 } from '@mui/material';
 import {
   WhatsApp,
@@ -23,6 +24,7 @@ import {
   Instagram,
   Search,
   Chat as ChatIcon,
+  ArrowBack,
 } from '@mui/icons-material';
 import { UnifiedChatWindow } from '../../components/UnifiedChatWindow';
 import { clientsService, type Client } from '../../services/clients.service';
@@ -42,6 +44,7 @@ const CHANNEL_COLORS = {
 };
 
 export const ChatPage: React.FC = () => {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const clientIdParam = searchParams.get('clientId');
   const ticketIdParam = searchParams.get('ticketId');
@@ -112,15 +115,30 @@ export const ChatPage: React.FC = () => {
   };
 
   return (
-    <Container maxWidth="xl" sx={{ py: 3, height: 'calc(100vh - 64px)' }}>
-      <Grid container spacing={2} sx={{ height: '100%' }}>
-        {/* Clients List */}
-        <Grid item xs={12} md={4}>
-          <Paper sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
-              <Typography variant="h6" fontWeight={600} gutterBottom>
-                Клиенты
-              </Typography>
+    <Box
+      sx={{
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
+      }}
+    >
+      <Container maxWidth="xl" sx={{ py: 3 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+          <Button
+            startIcon={<ArrowBack />}
+            onClick={() => navigate('/')}
+            sx={{ borderRadius: 2 }}
+          >
+            Назад
+          </Button>
+        </Box>
+        <Grid container spacing={2} sx={{ height: 'calc(100vh - 120px)' }}>
+          {/* Clients List */}
+          <Grid item xs={12} md={4}>
+            <Paper sx={{ height: '100%', display: 'flex', flexDirection: 'column', borderRadius: 3 }}>
+              <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
+                <Typography variant="h6" fontWeight={600} gutterBottom>
+                  Клиенты
+                </Typography>
               <TextField
                 fullWidth
                 size="small"
@@ -225,9 +243,9 @@ export const ChatPage: React.FC = () => {
           </Paper>
         </Grid>
 
-        {/* Chat Window */}
-        <Grid item xs={12} md={8}>
-          <Paper sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+          {/* Chat Window */}
+          <Grid item xs={12} md={8}>
+            <Paper sx={{ height: '100%', display: 'flex', flexDirection: 'column', borderRadius: 3 }}>
             {selectedClient ? (
               <UnifiedChatWindow clientId={selectedClient.id} ticketId={ticketIdParam || undefined} />
             ) : (
@@ -250,10 +268,11 @@ export const ChatPage: React.FC = () => {
                 </Typography>
               </Box>
             )}
-          </Paper>
+            </Paper>
+          </Grid>
         </Grid>
-      </Grid>
-    </Container>
+      </Container>
+    </Box>
   );
 };
 
