@@ -10,7 +10,7 @@ import {
   Avatar,
   Grid,
 } from '@mui/material';
-import { Logout, Dashboard as DashboardIcon, Person, Assignment } from '@mui/icons-material';
+import { Logout, Dashboard as DashboardIcon, Person, Assignment, Chat } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 
 export const DashboardPage: React.FC = () => {
@@ -161,6 +161,30 @@ export const DashboardPage: React.FC = () => {
                   sx={{ borderRadius: 2 }}
                 >
                   Перейти к тикетам
+                </Button>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          <Grid item xs={12} md={4}>
+            <Card sx={{ borderRadius: 3, height: '100%', cursor: 'pointer' }} onClick={() => navigate('/chat')}>
+              <CardContent sx={{ p: 3 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+                  <Chat sx={{ fontSize: 40, color: 'primary.main' }} />
+                  <Typography variant="h6" fontWeight={600}>
+                    Единый чат
+                  </Typography>
+                </Box>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  Переписка со всеми каналами связи: WhatsApp, Telegram, Instagram
+                </Typography>
+                <Button
+                  variant="contained"
+                  startIcon={<Chat />}
+                  fullWidth
+                  sx={{ borderRadius: 2 }}
+                >
+                  Открыть чат
                 </Button>
               </CardContent>
             </Card>

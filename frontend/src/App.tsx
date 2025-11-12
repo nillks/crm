@@ -12,6 +12,7 @@ import { ClientsPage } from './pages/clients/ClientsPage';
 import { ClientCardPage } from './pages/clients/ClientCardPage';
 import { TicketsPage } from './pages/tickets/TicketsPage';
 import { TicketDetailPage } from './pages/tickets/TicketDetailPage';
+import { ChatPage } from './pages/chat/ChatPage';
 
 // Компонент для редиректа авторизованных пользователей
 const PublicRoute = ({ children }: { children: ReactNode }) => {
@@ -88,6 +89,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <TicketDetailPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/chat"
+              element={
+                <ProtectedRoute>
+                  <ChatPage />
                 </ProtectedRoute>
               }
             />
