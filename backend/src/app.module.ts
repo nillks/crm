@@ -10,6 +10,7 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { RolesModule } from './roles/roles.module';
 import { ClientsModule } from './clients/clients.module';
+import { TicketsModule } from './tickets/tickets.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { AllEntities } from './entities';
 import { TestPermissionsController } from './roles/test-permissions.controller';
@@ -42,6 +43,7 @@ import { TestPermissionsController } from './roles/test-permissions.controller';
     UsersModule,
     RolesModule,
     ClientsModule,
+    TicketsModule,
   ],
   controllers: [AppController, HealthController, TestPermissionsController],
   providers: [
