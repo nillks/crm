@@ -84,13 +84,42 @@ export const messagesService = {
       
       let messages = (client.messages || []) as Message[];
       
+      console.log('Raw messages from client:', {
+        clientId,
+        messagesCount: messages.length,
+        messages: messages,
+      });
+      
       // Убеждаемся, что сообщения имеют правильный формат
-      messages = messages.map((msg) => ({
-        ...msg,
-        channel: msg.channel as MessageChannel,
-        direction: msg.direction as MessageDirection,
-        createdAt: msg.createdAt || new Date().toISOString(),
-      }));
+      messages = messages.map((msg: any) => {
+        // Преобразуем дату если она в формате Date
+        let createdAt = msg.createdAt;
+        if (createdAt instanceof Date) {
+          createdAt = createdAt.toISOString();
+        } else if (typeof createdAt === 'string') {
+          // Уже строка
+        } else {
+          createdAt = new Date().toISOString();
+        }
+        
+        return {
+          ...msg,
+          id: msg.id || `temp-${Date.now()}-${Math.random()}`,
+          channel: (msg.channel || 'whatsapp') as MessageChannel,
+          direction: (msg.direction || 'inbound') as MessageDirection,
+          content: msg.content || msg.textMessage || msg.text || '',
+          clientId: msg.clientId || clientId,
+          ticketId: msg.ticketId || undefined,
+          isRead: msg.isRead || false,
+          isDelivered: msg.isDelivered || false,
+          createdAt: createdAt,
+        };
+      });
+      
+      console.log('Processed messages:', {
+        messagesCount: messages.length,
+        messages: messages,
+      });
       
       // Применяем фильтры на frontend
       if (params?.channel) {
