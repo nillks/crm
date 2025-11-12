@@ -57,6 +57,7 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({ clientId, 
   const [selectedChannel, setSelectedChannel] = useState<MessageChannel>(MessageChannel.WHATSAPP);
   const [channelFilter, setChannelFilter] = useState<MessageChannel | 'all'>('all');
   const [sending, setSending] = useState(false);
+  const [conversationStatus, setConversationStatus] = useState<'active' | 'closed' | 'needs_reply'>('active');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -101,6 +102,24 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({ clientId, 
       } else {
         setMessages(response.data);
       }
+      
+      // Определяем статус разговора
+      if (response.data.length > 0) {
+        const lastMessage = response.data[response.data.length - 1];
+        const unreadInbound = response.data.filter(
+          (msg) => msg.direction === MessageDirection.INBOUND && !msg.isRead
+        ).length;
+        
+        if (unreadInbound > 0) {
+          setConversationStatus('needs_reply');
+        } else if (lastMessage.direction === MessageDirection.INBOUND) {
+          setConversationStatus('active');
+        } else {
+          setConversationStatus('closed');
+        }
+      } else {
+        setConversationStatus('active');
+      }
     } catch (err: any) {
       setError(getErrorMessage(err));
     } finally {
@@ -122,48 +141,53 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({ clientId, 
       setSending(true);
       setError(null);
 
-      let response;
-      const dto = {
-        recipientId: clientId,
-        message: newMessage.trim(),
-        ticketId: ticketId,
-      };
+      // Получаем данные клиента для отправки сообщения
+      const { clientsService } = await import('../services/clients.service');
+      const client = await clientsService.getClientById(clientId);
+
+      const messageText = newMessage.trim();
 
       switch (selectedChannel) {
         case MessageChannel.WHATSAPP:
-          response = await messagesService.sendWhatsAppMessage(dto);
+          if (!client.phone && !client.whatsappId) {
+            throw new Error('У клиента не указан номер телефона для WhatsApp');
+          }
+          await messagesService.sendWhatsAppMessage({
+            phoneNumber: client.whatsappId || client.phone || '',
+            message: messageText,
+            ticketId: ticketId,
+          });
           break;
         case MessageChannel.TELEGRAM:
-          response = await messagesService.sendTelegramMessage(dto);
+          if (!client.telegramId) {
+            throw new Error('У клиента не указан Telegram ID');
+          }
+          await messagesService.sendTelegramMessage({
+            chatId: client.telegramId,
+            message: messageText,
+            ticketId: ticketId,
+          });
           break;
         case MessageChannel.INSTAGRAM:
-          response = await messagesService.sendInstagramMessage(dto);
+          if (!client.instagramId) {
+            throw new Error('У клиента не указан Instagram ID');
+          }
+          await messagesService.sendInstagramMessage({
+            recipientId: client.instagramId,
+            message: messageText,
+            ticketId: ticketId,
+          });
           break;
         default:
           throw new Error('Неизвестный канал');
       }
 
-      // Добавляем отправленное сообщение в список
-      const sentMessage: Message = {
-        id: response.messageId || `temp-${Date.now()}`,
-        channel: selectedChannel,
-        direction: MessageDirection.OUTBOUND,
-        content: newMessage.trim(),
-        clientId: clientId,
-        ticketId: ticketId,
-        isRead: false,
-        isDelivered: false,
-        createdAt: new Date().toISOString(),
-      };
-
-      setMessages((prev) => [...prev, sentMessage]);
-      setNewMessage('');
-      scrollToBottom();
-
       // Перезагружаем сообщения для получения актуальных данных
       setTimeout(() => {
         loadMessages(1, false);
-      }, 1000);
+      }, 500);
+      
+      setNewMessage('');
     } catch (err: any) {
       setError(getErrorMessage(err));
     } finally {
@@ -208,24 +232,60 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({ clientId, 
   };
 
   return (
-    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', bgcolor: 'background.default' }}>
       {/* Header */}
       <Paper
-        elevation={1}
+        elevation={0}
         sx={{
           p: 2,
-          borderRadius: '8px 8px 0 0',
           borderBottom: '1px solid',
           borderColor: 'divider',
+          bgcolor: 'background.paper',
         }}
       >
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-          <Typography variant="h6" fontWeight={600}>
-            Единое окно чата
-          </Typography>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Typography variant="h6" fontWeight={600} sx={{ color: 'text.primary' }}>
+              Единое окно чата
+            </Typography>
+            {conversationStatus === 'needs_reply' && (
+              <Chip
+                label="Требует ответа"
+                color="error"
+                size="small"
+                sx={{ fontWeight: 500 }}
+              />
+            )}
+            {conversationStatus === 'active' && (
+              <Chip
+                label="Активен"
+                color="success"
+                size="small"
+                sx={{ fontWeight: 500 }}
+              />
+            )}
+            {conversationStatus === 'closed' && (
+              <Chip
+                label="Завершён"
+                color="default"
+                size="small"
+                sx={{ fontWeight: 500 }}
+              />
+            )}
+          </Box>
           <Box sx={{ display: 'flex', gap: 1 }}>
             <Tooltip title="Обновить">
-              <IconButton size="small" onClick={() => loadMessages(1, false)}>
+              <IconButton 
+                size="small" 
+                onClick={() => loadMessages(1, false)}
+                sx={{ 
+                  '&:hover': { 
+                    bgcolor: 'action.hover',
+                    transform: 'rotate(180deg)',
+                    transition: 'transform 0.3s',
+                  },
+                }}
+              >
                 <Refresh />
               </IconButton>
             </Tooltip>
@@ -240,6 +300,7 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({ clientId, 
               value={channelFilter}
               label="Канал"
               onChange={(e) => setChannelFilter(e.target.value as MessageChannel | 'all')}
+              sx={{ borderRadius: 2 }}
             >
               <MenuItem value="all">Все каналы</MenuItem>
               <MenuItem value={MessageChannel.WHATSAPP}>
@@ -262,6 +323,11 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({ clientId, 
               </MenuItem>
             </Select>
           </FormControl>
+          {filteredMessages.length > 0 && (
+            <Typography variant="body2" color="text.secondary">
+              Сообщений: {filteredMessages.length}
+            </Typography>
+          )}
         </Box>
       </Paper>
 
@@ -274,7 +340,20 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({ clientId, 
           bgcolor: 'grey.50',
           display: 'flex',
           flexDirection: 'column',
-          gap: 1,
+          gap: 1.5,
+          '&::-webkit-scrollbar': {
+            width: '8px',
+          },
+          '&::-webkit-scrollbar-track': {
+            bgcolor: 'grey.100',
+          },
+          '&::-webkit-scrollbar-thumb': {
+            bgcolor: 'grey.400',
+            borderRadius: '4px',
+            '&:hover': {
+              bgcolor: 'grey.500',
+            },
+          },
         }}
       >
         {loading && messages.length === 0 ? (
@@ -300,11 +379,15 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({ clientId, 
               return (
                 <React.Fragment key={message.id}>
                   {showDate && (
-                    <Box sx={{ textAlign: 'center', my: 1 }}>
+                    <Box sx={{ textAlign: 'center', my: 2 }}>
                       <Chip
                         label={formatDate(message.createdAt)}
                         size="small"
-                        sx={{ bgcolor: 'grey.200', fontWeight: 500 }}
+                        sx={{ 
+                          bgcolor: 'grey.200', 
+                          fontWeight: 500,
+                          color: 'text.secondary',
+                        }}
                       />
                     </Box>
                   )}
@@ -312,35 +395,42 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({ clientId, 
                     sx={{
                       display: 'flex',
                       justifyContent: message.direction === MessageDirection.INBOUND ? 'flex-start' : 'flex-end',
-                      mb: 1,
+                      mb: 1.5,
+                      px: 1,
                     }}
                   >
                     <Box
                       sx={{
-                        maxWidth: '70%',
+                        maxWidth: '75%',
                         display: 'flex',
-                        gap: 1,
+                        gap: 1.5,
                         flexDirection: message.direction === MessageDirection.INBOUND ? 'row' : 'row-reverse',
+                        alignItems: 'flex-end',
                       }}
                     >
                       {message.direction === MessageDirection.INBOUND && (
                         <Avatar
                           sx={{
-                            width: 32,
-                            height: 32,
+                            width: 36,
+                            height: 36,
                             bgcolor: CHANNEL_COLORS[message.channel],
+                            boxShadow: 2,
                           }}
                         >
                           {getChannelIcon(message.channel)}
                         </Avatar>
                       )}
                       <Paper
-                        elevation={1}
+                        elevation={2}
                         sx={{
                           p: 1.5,
-                          borderRadius: 2,
+                          borderRadius: message.direction === MessageDirection.INBOUND 
+                            ? '16px 16px 16px 4px' 
+                            : '16px 16px 4px 16px',
                           bgcolor: message.direction === MessageDirection.INBOUND ? 'white' : 'primary.main',
                           color: message.direction === MessageDirection.INBOUND ? 'text.primary' : 'white',
+                          maxWidth: '100%',
+                          wordBreak: 'break-word',
                         }}
                       >
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
@@ -354,25 +444,38 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({ clientId, 
                                 fontSize: '0.7rem',
                                 bgcolor: CHANNEL_COLORS[message.channel],
                                 color: 'white',
+                                fontWeight: 500,
                               }}
                             />
                           )}
-                          <Typography variant="caption" sx={{ opacity: 0.8 }}>
+                          <Typography 
+                            variant="caption" 
+                            sx={{ 
+                              opacity: 0.8,
+                              fontSize: '0.7rem',
+                            }}
+                          >
                             {formatTime(message.createdAt)}
                           </Typography>
                         </Box>
-                        <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+                        <Typography 
+                          variant="body2" 
+                          sx={{ 
+                            whiteSpace: 'pre-wrap',
+                            lineHeight: 1.5,
+                          }}
+                        >
                           {message.content}
                         </Typography>
                         {message.direction === MessageDirection.OUTBOUND && (
                           <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 0.5, gap: 0.5 }}>
                             {message.isDelivered && (
-                              <Typography variant="caption" sx={{ opacity: 0.7, fontSize: '0.7rem' }}>
+                              <Typography variant="caption" sx={{ opacity: 0.8, fontSize: '0.75rem' }}>
                                 ✓
                               </Typography>
                             )}
                             {message.isRead && (
-                              <Typography variant="caption" sx={{ opacity: 0.7, fontSize: '0.7rem' }}>
+                              <Typography variant="caption" sx={{ opacity: 0.8, fontSize: '0.75rem' }}>
                                 ✓✓
                               </Typography>
                             )}
@@ -382,9 +485,11 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({ clientId, 
                       {message.direction === MessageDirection.OUTBOUND && (
                         <Avatar
                           sx={{
-                            width: 32,
-                            height: 32,
+                            width: 36,
+                            height: 36,
                             bgcolor: 'primary.main',
+                            boxShadow: 2,
+                            fontWeight: 600,
                           }}
                         >
                           Я
@@ -403,20 +508,28 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({ clientId, 
       {/* Input Area */}
       {clientId && (
         <Paper
-          elevation={2}
+          elevation={0}
           sx={{
             p: 2,
-            borderRadius: '0 0 8px 8px',
             borderTop: '1px solid',
             borderColor: 'divider',
+            bgcolor: 'background.paper',
           }}
         >
-          <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-end' }}>
-            <FormControl size="small" sx={{ minWidth: 120 }}>
+          {error && (
+            <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+              {error}
+            </Alert>
+          )}
+          <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-end' }}>
+            <FormControl size="small" sx={{ minWidth: 140 }}>
               <Select
                 value={selectedChannel}
                 onChange={(e) => setSelectedChannel(e.target.value as MessageChannel)}
-                sx={{ height: 40 }}
+                sx={{ 
+                  height: 48,
+                  borderRadius: 2,
+                }}
               >
                 <MenuItem value={MessageChannel.WHATSAPP}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -447,16 +560,31 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({ clientId, 
               onChange={(e) => setNewMessage(e.target.value)}
               onKeyPress={handleKeyPress}
               disabled={sending}
-              sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+              sx={{ 
+                '& .MuiOutlinedInput-root': { 
+                  borderRadius: 2,
+                  bgcolor: 'background.default',
+                },
+              }}
             />
             <Button
               variant="contained"
               onClick={handleSendMessage}
               disabled={!newMessage.trim() || sending}
-              startIcon={sending ? <CircularProgress size={16} /> : <Send />}
-              sx={{ minWidth: 100, height: 40 }}
+              startIcon={sending ? <CircularProgress size={18} color="inherit" /> : <Send />}
+              sx={{ 
+                minWidth: 120, 
+                height: 48,
+                borderRadius: 2,
+                textTransform: 'none',
+                fontWeight: 600,
+                boxShadow: 2,
+                '&:hover': {
+                  boxShadow: 4,
+                },
+              }}
             >
-              Отправить
+              {sending ? 'Отправка...' : 'Отправить'}
             </Button>
           </Box>
         </Paper>

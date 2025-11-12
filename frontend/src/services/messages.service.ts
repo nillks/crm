@@ -84,6 +84,14 @@ export const messagesService = {
       
       let messages = (client.messages || []) as Message[];
       
+      // Убеждаемся, что сообщения имеют правильный формат
+      messages = messages.map((msg) => ({
+        ...msg,
+        channel: msg.channel as MessageChannel,
+        direction: msg.direction as MessageDirection,
+        createdAt: msg.createdAt || new Date().toISOString(),
+      }));
+      
       // Применяем фильтры на frontend
       if (params?.channel) {
         messages = messages.filter((msg) => msg.channel === params.channel);
@@ -105,6 +113,15 @@ export const messagesService = {
         const aVal = a[sortBy as keyof Message];
         const bVal = b[sortBy as keyof Message];
         if (aVal === undefined || bVal === undefined) return 0;
+        
+        // Для дат используем правильное сравнение
+        if (sortBy === 'createdAt' || sortBy === 'deliveredAt') {
+          const aDate = new Date(aVal as string).getTime();
+          const bDate = new Date(bVal as string).getTime();
+          return sortOrder === 'ASC' ? aDate - bDate : bDate - aDate;
+        }
+        
+        // Для остальных полей
         if (sortOrder === 'ASC') {
           return aVal > bVal ? 1 : -1;
         } else {
@@ -192,7 +209,7 @@ export const messagesService = {
   /**
    * Отправить сообщение через WhatsApp
    */
-  async sendWhatsAppMessage(dto: SendMessageDto): Promise<any> {
+  async sendWhatsAppMessage(dto: { phoneNumber: string; message: string; ticketId?: string }): Promise<any> {
     const response = await api.post('/whatsapp/send', dto);
     return response.data;
   },
@@ -200,7 +217,7 @@ export const messagesService = {
   /**
    * Отправить сообщение через Telegram
    */
-  async sendTelegramMessage(dto: SendMessageDto): Promise<any> {
+  async sendTelegramMessage(dto: { chatId: string; message: string; ticketId?: string }): Promise<any> {
     const response = await api.post('/telegram/send', dto);
     return response.data;
   },
@@ -208,7 +225,7 @@ export const messagesService = {
   /**
    * Отправить сообщение через Instagram
    */
-  async sendInstagramMessage(dto: SendMessageDto): Promise<any> {
+  async sendInstagramMessage(dto: { recipientId: string; message: string; ticketId?: string }): Promise<any> {
     const response = await api.post('/instagram/send', dto);
     return response.data;
   },
