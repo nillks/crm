@@ -10,7 +10,7 @@ import {
   Avatar,
   Grid,
 } from '@mui/material';
-import { Logout, Dashboard as DashboardIcon } from '@mui/icons-material';
+import { Logout, Dashboard as DashboardIcon, Person } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 
 export const DashboardPage: React.FC = () => {
@@ -119,14 +119,25 @@ export const DashboardPage: React.FC = () => {
           </Grid>
 
           <Grid item xs={12} md={6}>
-            <Card sx={{ borderRadius: 3, height: '100%' }}>
+            <Card sx={{ borderRadius: 3, height: '100%', cursor: 'pointer' }} onClick={() => navigate('/clients')}>
               <CardContent sx={{ p: 3 }}>
-                <Typography variant="h6" gutterBottom fontWeight={600}>
-                  Система готова к работе
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+                  <Person sx={{ fontSize: 40, color: 'primary.main' }} />
+                  <Typography variant="h6" fontWeight={600}>
+                    Клиенты
+                  </Typography>
+                </Box>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  Управление клиентами, просмотр карточек и работа с тикетами
                 </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-                  Аутентификация успешно настроена. Вы можете приступить к работе с системой.
-                </Typography>
+                <Button
+                  variant="contained"
+                  startIcon={<Person />}
+                  fullWidth
+                  sx={{ borderRadius: 2 }}
+                >
+                  Перейти к клиентам
+                </Button>
               </CardContent>
             </Card>
           </Grid>
