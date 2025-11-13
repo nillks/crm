@@ -113,10 +113,22 @@ export class ClientsService {
     const client = await this.clientsRepository.findOne({
       where: { id },
       relations,
+      order: relations.includes('messages') 
+        ? { messages: { createdAt: 'ASC' } }
+        : undefined,
     });
 
     if (!client) {
       throw new NotFoundException(`Клиент с ID ${id} не найден`);
+    }
+
+    // Если есть сообщения, убеждаемся что они отсортированы
+    if (client.messages && Array.isArray(client.messages)) {
+      client.messages.sort((a, b) => {
+        const dateA = a.createdAt instanceof Date ? a.createdAt.getTime() : new Date(a.createdAt).getTime();
+        const dateB = b.createdAt instanceof Date ? b.createdAt.getTime() : new Date(b.createdAt).getTime();
+        return dateA - dateB;
+      });
     }
 
     return client;
