@@ -118,38 +118,50 @@ export const ChatPage: React.FC = () => {
 
     // Фильтр по статусу разговора
     if (statusFilter !== 'all') {
-      const messages = client.messages || [];
-      if (messages.length === 0) {
-        // Если нет сообщений, показываем только если статус "активен" или "все"
-        if (statusFilter !== 'active') return false;
+      try {
+        const messages = client.messages || [];
+        if (messages.length === 0) {
+          // Если нет сообщений, показываем только если статус "активен" или "все"
+          if (statusFilter !== 'active') return false;
+          return true;
+        }
+
+        const lastMessage = messages[messages.length - 1];
+        if (!lastMessage) {
+          // Если последнее сообщение не найдено
+          if (statusFilter !== 'active') return false;
+          return true;
+        }
+
+        const hasUnreadInbound = messages.some(
+          (msg) => msg && msg.direction === 'inbound' && !msg.isRead
+        );
+
+        if (statusFilter === 'needs_reply') {
+          // Требует ответа - последнее сообщение входящее и непрочитанное
+          if (!(lastMessage.direction === 'inbound' && !lastMessage.isRead)) {
+            return false;
+          }
+        } else if (statusFilter === 'replied') {
+          // Ответили - последнее сообщение исходящее
+          if (lastMessage.direction !== 'outbound') {
+            return false;
+          }
+        } else if (statusFilter === 'active') {
+          // Активен - есть непрочитанные входящие сообщения
+          if (!hasUnreadInbound) {
+            return false;
+          }
+        } else if (statusFilter === 'closed') {
+          // Завершён - последнее сообщение исходящее и нет непрочитанных
+          if (!(lastMessage.direction === 'outbound' && !hasUnreadInbound)) {
+            return false;
+          }
+        }
+      } catch (error) {
+        console.error('Error filtering by status:', error, client);
+        // В случае ошибки показываем клиента
         return true;
-      }
-
-      const lastMessage = messages[messages.length - 1];
-      const hasUnreadInbound = messages.some(
-        (msg) => msg.direction === 'inbound' && !msg.isRead
-      );
-
-      if (statusFilter === 'needs_reply') {
-        // Требует ответа - последнее сообщение входящее и непрочитанное
-        if (!(lastMessage.direction === 'inbound' && !lastMessage.isRead)) {
-          return false;
-        }
-      } else if (statusFilter === 'replied') {
-        // Ответили - последнее сообщение исходящее
-        if (lastMessage.direction !== 'outbound') {
-          return false;
-        }
-      } else if (statusFilter === 'active') {
-        // Активен - есть непрочитанные входящие сообщения
-        if (!hasUnreadInbound) {
-          return false;
-        }
-      } else if (statusFilter === 'closed') {
-        // Завершён - последнее сообщение исходящее и нет непрочитанных
-        if (!(lastMessage.direction === 'outbound' && !hasUnreadInbound)) {
-          return false;
-        }
       }
     }
 
@@ -171,7 +183,7 @@ export const ChatPage: React.FC = () => {
   return (
     <Box
       sx={{
-        height: '100vh',
+        minHeight: '100vh',
         background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
         display: 'flex',
         flexDirection: 'column',

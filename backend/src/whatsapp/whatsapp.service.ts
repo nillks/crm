@@ -96,22 +96,39 @@ export class WhatsAppService {
   async handleWebhook(webhookData: GreenAPIWebhook): Promise<void> {
     try {
       this.logger.log(`Received webhook from Green API: ${webhookData.typeWebhook}`);
+      this.logger.debug(`Webhook data: ${JSON.stringify(webhookData, null, 2)}`);
 
-      switch (webhookData.typeWebhook) {
-        case 'incomingMessageReceived':
-          await this.processIncomingMessage(webhookData);
-          break;
-        case 'outgoingMessageStatus':
-          await this.processStatusUpdate(webhookData);
-          break;
-        case 'stateInstanceChanged':
-          this.logger.log(`Instance state changed: ${JSON.stringify(webhookData.data)}`);
-          break;
-        default:
-          this.logger.log(`Unhandled webhook type: ${webhookData.typeWebhook}`);
+      // Green API может отправлять массив webhook'ов или один объект
+      let webhooks: GreenAPIWebhook[] = [];
+      if (Array.isArray(webhookData)) {
+        webhooks = webhookData as any;
+      } else if (webhookData.typeWebhook) {
+        webhooks = [webhookData];
+      } else {
+        // Возможно, данные приходят в другом формате
+        this.logger.warn(`Unexpected webhook format: ${JSON.stringify(webhookData)}`);
+        // Пытаемся обработать как один webhook
+        webhooks = [webhookData as any];
+      }
+
+      for (const webhook of webhooks) {
+        switch (webhook.typeWebhook) {
+          case 'incomingMessageReceived':
+            await this.processIncomingMessage(webhook);
+            break;
+          case 'outgoingMessageStatus':
+            await this.processStatusUpdate(webhook);
+            break;
+          case 'stateInstanceChanged':
+            this.logger.log(`Instance state changed: ${JSON.stringify(webhook.data)}`);
+            break;
+          default:
+            this.logger.log(`Unhandled webhook type: ${webhook.typeWebhook}`);
+        }
       }
     } catch (error) {
       this.logger.error('Error processing webhook:', error);
+      this.logger.error(`Webhook data that caused error: ${JSON.stringify(webhookData, null, 2)}`);
       throw error;
     }
   }
@@ -121,17 +138,25 @@ export class WhatsAppService {
    */
   private async processIncomingMessage(webhookData: GreenAPIWebhook): Promise<void> {
     try {
+      this.logger.debug(`Processing incoming message: ${JSON.stringify(webhookData, null, 2)}`);
+      
       const data = webhookData.data;
       if (!data) {
         this.logger.warn('Webhook data is empty');
+        this.logger.warn(`Full webhook: ${JSON.stringify(webhookData, null, 2)}`);
         return;
       }
 
-      const chatId = data.chatId || data.senderId;
+      // Green API может использовать разные поля для идентификации отправителя
+      const chatId = data.chatId || data.senderId || data.sender || data.from;
       if (!chatId) {
         this.logger.warn('ChatId is missing in webhook data');
+        this.logger.warn(`Available data fields: ${Object.keys(data).join(', ')}`);
+        this.logger.warn(`Full data: ${JSON.stringify(data, null, 2)}`);
         return;
       }
+      
+      this.logger.log(`Processing message from chatId: ${chatId}`);
 
       // Извлекаем номер телефона из chatId (формат: "79001234567@c.us")
       const phoneNumber = chatId.split('@')[0];

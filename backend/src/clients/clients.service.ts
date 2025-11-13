@@ -110,25 +110,53 @@ export class ClientsService {
       if (includes.includes('calls')) relations.push('calls');
     }
 
+    // Если нужно загрузить сообщения, используем QueryBuilder для правильной сортировки
+    if (relations.includes('messages')) {
+      const client = await this.clientsRepository
+        .createQueryBuilder('client')
+        .leftJoinAndSelect('client.messages', 'messages')
+        .where('client.id = :id', { id })
+        .orderBy('messages.createdAt', 'ASC')
+        .getOne();
+
+      if (!client) {
+        throw new NotFoundException(`Клиент с ID ${id} не найден`);
+      }
+
+      // Загружаем остальные relations если нужно
+      if (relations.includes('tickets')) {
+        await this.clientsRepository
+          .createQueryBuilder('client')
+          .leftJoinAndSelect('client.tickets', 'tickets')
+          .where('client.id = :id', { id })
+          .getOne()
+          .then((c) => {
+            if (c) client.tickets = c.tickets;
+          });
+      }
+
+      if (relations.includes('calls')) {
+        await this.clientsRepository
+          .createQueryBuilder('client')
+          .leftJoinAndSelect('client.calls', 'calls')
+          .where('client.id = :id', { id })
+          .getOne()
+          .then((c) => {
+            if (c) client.calls = c.calls;
+          });
+      }
+
+      return client;
+    }
+
+    // Для остальных случаев используем обычный findOne
     const client = await this.clientsRepository.findOne({
       where: { id },
       relations,
-      order: relations.includes('messages') 
-        ? { messages: { createdAt: 'ASC' } }
-        : undefined,
     });
 
     if (!client) {
       throw new NotFoundException(`Клиент с ID ${id} не найден`);
-    }
-
-    // Если есть сообщения, убеждаемся что они отсортированы
-    if (client.messages && Array.isArray(client.messages)) {
-      client.messages.sort((a, b) => {
-        const dateA = a.createdAt instanceof Date ? a.createdAt.getTime() : new Date(a.createdAt).getTime();
-        const dateB = b.createdAt instanceof Date ? b.createdAt.getTime() : new Date(b.createdAt).getTime();
-        return dateA - dateB;
-      });
     }
 
     return client;
