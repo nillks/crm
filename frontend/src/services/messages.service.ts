@@ -88,6 +88,9 @@ export const messagesService = {
         clientId,
         messagesCount: messages.length,
         messages: messages,
+        clientWhatsappId: client.whatsappId,
+        clientTelegramId: client.telegramId,
+        clientInstagramId: client.instagramId,
       });
       
       // Убеждаемся, что сообщения имеют правильный формат
@@ -102,16 +105,39 @@ export const messagesService = {
           createdAt = new Date().toISOString();
         }
         
+        // Нормализуем channel - может быть строкой или enum
+        let channel = msg.channel;
+        if (typeof channel === 'string') {
+          // Убеждаемся что это валидный канал
+          if (!Object.values(MessageChannel).includes(channel as MessageChannel)) {
+            console.warn('Invalid channel:', channel, 'defaulting to whatsapp');
+            channel = MessageChannel.WHATSAPP;
+          }
+        } else {
+          channel = MessageChannel.WHATSAPP;
+        }
+        
+        // Нормализуем direction
+        let direction = msg.direction;
+        if (typeof direction === 'string') {
+          if (!['inbound', 'outbound'].includes(direction)) {
+            console.warn('Invalid direction:', direction, 'defaulting to inbound');
+            direction = MessageDirection.INBOUND;
+          }
+        } else {
+          direction = MessageDirection.INBOUND;
+        }
+        
         return {
           ...msg,
           id: msg.id || `temp-${Date.now()}-${Math.random()}`,
-          channel: (msg.channel || 'whatsapp') as MessageChannel,
-          direction: (msg.direction || 'inbound') as MessageDirection,
-          content: msg.content || msg.textMessage || msg.text || '',
+          channel: channel as MessageChannel,
+          direction: direction as MessageDirection,
+          content: msg.content || msg.textMessage || msg.text || '[Сообщение без текста]',
           clientId: msg.clientId || clientId,
           ticketId: msg.ticketId || undefined,
-          isRead: msg.isRead || false,
-          isDelivered: msg.isDelivered || false,
+          isRead: msg.isRead !== undefined ? Boolean(msg.isRead) : false,
+          isDelivered: msg.isDelivered !== undefined ? Boolean(msg.isDelivered) : false,
           createdAt: createdAt,
         };
       });
@@ -119,6 +145,7 @@ export const messagesService = {
       console.log('Processed messages:', {
         messagesCount: messages.length,
         messages: messages,
+        channels: [...new Set(messages.map(m => m.channel))],
       });
       
       // Применяем фильтры на frontend

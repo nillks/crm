@@ -447,8 +447,16 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({ clientId, 
           </Box>
         </Box>
 
-        {/* Filters */}
-        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+        {/* Filters - перемещены вправо */}
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+          {filteredMessages.length > 0 && (
+            <Chip
+              label={`${filteredMessages.length} сообщений`}
+              size="small"
+              sx={{ bgcolor: 'action.selected' }}
+            />
+          )}
+          
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
             <FilterList sx={{ fontSize: 18, color: 'text.secondary' }} />
             <Typography variant="body2" color="text.secondary" sx={{ mr: 1 }}>
@@ -507,6 +515,12 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({ clientId, 
               onChange={(_, value) => {
                 if (value !== null) {
                   setStatusFilter(value);
+                  // Если выбран "требует ответа" - прокручиваем вниз
+                  if (value === 'needs_reply') {
+                    setTimeout(() => {
+                      scrollToBottom();
+                    }, 100);
+                  }
                 }
               }}
               size="small"
@@ -537,14 +551,6 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({ clientId, 
               </ToggleButton>
             </ToggleButtonGroup>
           </Box>
-          
-          {filteredMessages.length > 0 && (
-            <Chip
-              label={`${filteredMessages.length} сообщений`}
-              size="small"
-              sx={{ bgcolor: 'action.selected' }}
-            />
-          )}
         </Box>
       </Paper>
 
