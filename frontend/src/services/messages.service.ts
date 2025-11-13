@@ -108,21 +108,31 @@ export const messagesService = {
         // Нормализуем channel - может быть в разных форматах
         let channel = msg.channel;
         if (channel) {
-          channel = String(channel).toLowerCase();
-          if (channel === 'whatsapp' || channel === 'wa') {
+          const channelStr = String(channel).toLowerCase().trim();
+          if (channelStr === 'whatsapp' || channelStr === 'wa' || channelStr === 'whats_app') {
             channel = MessageChannel.WHATSAPP;
-          } else if (channel === 'telegram' || channel === 'tg') {
+          } else if (channelStr === 'telegram' || channelStr === 'tg' || channelStr === 'tele_gram') {
             channel = MessageChannel.TELEGRAM;
-          } else if (channel === 'instagram' || channel === 'ig') {
+          } else if (channelStr === 'instagram' || channelStr === 'ig' || channelStr === 'insta_gram') {
             channel = MessageChannel.INSTAGRAM;
           } else {
-            // Если не распознали - проверяем через enum
-            if (!Object.values(MessageChannel).includes(channel as MessageChannel)) {
-              console.warn('Invalid channel:', channel, 'defaulting to whatsapp');
+            // Если не распознали - проверяем через enum (учитываем возможные значения из БД)
+            const upperChannel = channelStr.toUpperCase();
+            if (upperChannel === 'WHATSAPP' || upperChannel === 'WA') {
+              channel = MessageChannel.WHATSAPP;
+            } else if (upperChannel === 'TELEGRAM' || upperChannel === 'TG') {
+              channel = MessageChannel.TELEGRAM;
+            } else if (upperChannel === 'INSTAGRAM' || upperChannel === 'IG') {
+              channel = MessageChannel.INSTAGRAM;
+            } else if (Object.values(MessageChannel).includes(channel as MessageChannel)) {
+              // Уже правильный формат
+            } else {
+              console.warn('Invalid channel:', channel, 'defaulting to whatsapp. Original:', msg.channel);
               channel = MessageChannel.WHATSAPP;
             }
           }
         } else {
+          console.warn('Channel is missing for message:', msg.id, 'defaulting to whatsapp');
           channel = MessageChannel.WHATSAPP;
         }
         
@@ -326,4 +336,5 @@ export const messagesService = {
     console.warn('markAsRead not implemented on backend yet');
   },
 };
+
 

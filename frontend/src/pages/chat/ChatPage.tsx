@@ -97,6 +97,14 @@ export const ChatPage: React.FC = () => {
     setSearchParams({ clientId: client.id });
   };
 
+  const getClientChannels = (client: Client): MessageChannel[] => {
+    const channels: MessageChannel[] = [];
+    if (client.whatsappId) channels.push(MessageChannel.WHATSAPP);
+    if (client.telegramId) channels.push(MessageChannel.TELEGRAM);
+    if (client.instagramId) channels.push(MessageChannel.INSTAGRAM);
+    return channels;
+  };
+
   const filteredClients = clients.filter((client) => {
     // Фильтр по поиску
     if (search) {
@@ -167,14 +175,6 @@ export const ChatPage: React.FC = () => {
 
     return true;
   });
-
-  const getClientChannels = (client: Client): MessageChannel[] => {
-    const channels: MessageChannel[] = [];
-    if (client.whatsappId) channels.push(MessageChannel.WHATSAPP);
-    if (client.telegramId) channels.push(MessageChannel.TELEGRAM);
-    if (client.instagramId) channels.push(MessageChannel.INSTAGRAM);
-    return channels;
-  };
 
   const getUnreadCount = (client: Client): number => {
     return client.messages?.filter((msg) => !msg.isRead && msg.direction === 'inbound').length || 0;

@@ -176,7 +176,7 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({
       setMessages([]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clientId, ticketId]);
+  }, [clientId, ticketId, channelFilter, statusFilter]);
 
 
   // Автоматическое обновление сообщений каждые 5 секунд
