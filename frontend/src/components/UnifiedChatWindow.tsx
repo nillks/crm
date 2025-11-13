@@ -70,6 +70,15 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({ clientId, 
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+  
+  // Автоматическая прокрутка вниз при фильтре "требует ответа"
+  useEffect(() => {
+    if (statusFilter === 'needs_reply' && filteredMessages.length > 0) {
+      setTimeout(() => {
+        scrollToBottom();
+      }, 100);
+    }
+  }, [statusFilter, filteredMessages.length]);
 
   const loadMessages = async (pageNum: number = 1, append: boolean = false) => {
     try {
