@@ -335,6 +335,15 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({ clientId, 
       }
     }
   }
+  
+  // Автоматическая прокрутка вниз при фильтре "требует ответа"
+  useEffect(() => {
+    if (statusFilter === 'needs_reply' && filteredMessages.length > 0) {
+      setTimeout(() => {
+        scrollToBottom();
+      }, 200);
+    }
+  }, [statusFilter, filteredMessages.length]);
 
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);

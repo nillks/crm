@@ -105,13 +105,22 @@ export const messagesService = {
           createdAt = new Date().toISOString();
         }
         
-        // Нормализуем channel - может быть строкой или enum
+        // Нормализуем channel - может быть в разных форматах
         let channel = msg.channel;
-        if (typeof channel === 'string') {
-          // Убеждаемся что это валидный канал
-          if (!Object.values(MessageChannel).includes(channel as MessageChannel)) {
-            console.warn('Invalid channel:', channel, 'defaulting to whatsapp');
+        if (channel) {
+          channel = String(channel).toLowerCase();
+          if (channel === 'whatsapp' || channel === 'wa') {
             channel = MessageChannel.WHATSAPP;
+          } else if (channel === 'telegram' || channel === 'tg') {
+            channel = MessageChannel.TELEGRAM;
+          } else if (channel === 'instagram' || channel === 'ig') {
+            channel = MessageChannel.INSTAGRAM;
+          } else {
+            // Если не распознали - проверяем через enum
+            if (!Object.values(MessageChannel).includes(channel as MessageChannel)) {
+              console.warn('Invalid channel:', channel, 'defaulting to whatsapp');
+              channel = MessageChannel.WHATSAPP;
+            }
           }
         } else {
           channel = MessageChannel.WHATSAPP;
@@ -119,10 +128,18 @@ export const messagesService = {
         
         // Нормализуем direction
         let direction = msg.direction;
-        if (typeof direction === 'string') {
-          if (!['inbound', 'outbound'].includes(direction)) {
-            console.warn('Invalid direction:', direction, 'defaulting to inbound');
+        if (direction) {
+          direction = String(direction).toLowerCase();
+          if (direction === 'inbound' || direction === 'incoming' || direction === 'received') {
             direction = MessageDirection.INBOUND;
+          } else if (direction === 'outbound' || direction === 'outgoing' || direction === 'sent') {
+            direction = MessageDirection.OUTBOUND;
+          } else {
+            // Если не распознали - проверяем через enum
+            if (!Object.values(MessageDirection).includes(direction as MessageDirection)) {
+              console.warn('Invalid direction:', direction, 'defaulting to inbound');
+              direction = MessageDirection.INBOUND;
+            }
           }
         } else {
           direction = MessageDirection.INBOUND;
