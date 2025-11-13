@@ -49,13 +49,21 @@ export class WhatsAppController {
   @Post('webhook')
   @HttpCode(HttpStatus.OK)
   async handleWebhook(@Body() body: any) {
-    this.logger.log('Received webhook from Green API');
+    this.logger.log('═══════════════════════════════════════════════════════');
+    this.logger.log('📨 Received webhook from Green API');
+    this.logger.log(`📅 Time: ${new Date().toISOString()}`);
+    this.logger.log(`📦 Body type: ${typeof body}`);
+    this.logger.log(`📦 Body keys: ${Object.keys(body || {}).join(', ')}`);
+    this.logger.log(`📦 Full body: ${JSON.stringify(body, null, 2)}`);
+    this.logger.log('═══════════════════════════════════════════════════════');
     
     try {
       await this.whatsappService.handleWebhook(body);
+      this.logger.log('✅ Webhook processed successfully');
       return { success: true };
     } catch (error) {
-      this.logger.error('Error handling webhook:', error);
+      this.logger.error('❌ Error handling webhook:', error);
+      this.logger.error(`❌ Error stack: ${error.stack}`);
       // Всегда возвращаем 200, чтобы Green API не повторял запрос
       return { success: false, error: error.message };
     }
