@@ -517,5 +517,40 @@ export class WhatsAppService {
       isConfigured: !!(this.apiUrl && this.idInstance && this.apiTokenInstance),
     };
   }
+
+  /**
+   * Получить статистику сообщений для диагностики
+   */
+  async getStats() {
+    const totalMessages = await this.messagesRepository.count({
+      where: { channel: MessageChannel.WHATSAPP },
+    });
+
+    const recentMessages = await this.messagesRepository.find({
+      where: { channel: MessageChannel.WHATSAPP },
+      order: { createdAt: 'DESC' },
+      take: 10,
+      relations: ['client'],
+    });
+
+    const clientsWithWhatsApp = await this.clientsRepository.count({
+      where: { whatsappId: Not(IsNull()) },
+    });
+
+    return {
+      totalMessages,
+      recentMessages: recentMessages.map((msg) => ({
+        id: msg.id,
+        content: msg.content.substring(0, 50),
+        clientId: msg.clientId,
+        clientName: msg.client?.name,
+        clientWhatsappId: msg.client?.whatsappId,
+        direction: msg.direction,
+        createdAt: msg.createdAt,
+        externalId: msg.externalId,
+      })),
+      clientsWithWhatsApp,
+    };
+  }
 }
 

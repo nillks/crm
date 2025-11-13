@@ -83,5 +83,16 @@ export class WhatsAppController {
   getConfig() {
     return this.whatsappService.getConfig();
   }
+
+  /**
+   * Получить статистику сообщений (для диагностики)
+   * Требуется право: read Message
+   */
+  @Get('stats')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions({ action: Action.Read, subject: Subject.Message })
+  async getStats() {
+    return this.whatsappService.getStats();
+  }
 }
 
