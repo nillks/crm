@@ -105,19 +105,30 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({ clientId, 
         messages: response.data,
         params,
         clientId,
+        channels: [...new Set(response.data.map((m: Message) => m.channel))],
+        directions: [...new Set(response.data.map((m: Message) => m.direction))],
       });
       
       // Если сообщений нет, но клиент выбран - проверяем данные клиента
       if (response.data.length === 0 && clientId) {
-        console.warn('No messages found for client:', clientId);
+        console.warn('⚠️ No messages found for client:', clientId);
         console.log('Trying to reload client data...');
         // Перезагружаем данные клиента для проверки
         const clientData = await clientsService.getClientById(clientId, 'messages');
         console.log('Client data with messages:', {
-          client: clientData,
+          clientId: clientData.id,
+          clientName: clientData.name,
+          whatsappId: clientData.whatsappId,
+          telegramId: clientData.telegramId,
+          instagramId: clientData.instagramId,
           messagesCount: clientData.messages?.length || 0,
           messages: clientData.messages,
         });
+        
+        if (clientData.messages && clientData.messages.length > 0) {
+          console.warn('⚠️ Messages exist in client data but not in response!');
+          console.log('Raw messages from client:', clientData.messages);
+        }
       }
 
       if (append) {
