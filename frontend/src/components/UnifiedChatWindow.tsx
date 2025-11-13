@@ -11,6 +11,8 @@ import {
   CircularProgress,
   Alert,
   Tooltip,
+  ToggleButton,
+  ToggleButtonGroup,
 } from '@mui/material';
 import {
   Send,
@@ -72,10 +74,6 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
 
   const loadMessages = async (pageNum: number = 1, append: boolean = false) => {
     try {
@@ -180,15 +178,6 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientId, ticketId]);
 
-  // Автоматическая прокрутка вниз при фильтре "требует ответа"
-  useEffect(() => {
-    if (statusFilter === 'needs_reply' && filteredMessages.length > 0) {
-      setTimeout(() => {
-        scrollToBottom();
-      }, 200);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statusFilter, filteredMessages.length]);
 
   // Автоматическое обновление сообщений каждые 5 секунд
   useEffect(() => {

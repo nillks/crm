@@ -167,7 +167,21 @@ export const messagesService = {
       
       // Применяем фильтры на frontend
       if (params?.channel) {
-        messages = messages.filter((msg) => msg.channel === params.channel);
+        const filterChannel = params.channel;
+        const beforeFilter = messages.length;
+        messages = messages.filter((msg) => {
+          const msgChannel = String(msg.channel).toLowerCase();
+          const filterChannelLower = String(filterChannel).toLowerCase();
+          return msgChannel === filterChannelLower || 
+                 (filterChannelLower === 'whatsapp' && (msgChannel === 'wa' || msgChannel === 'whatsapp')) ||
+                 (filterChannelLower === 'telegram' && (msgChannel === 'tg' || msgChannel === 'telegram')) ||
+                 (filterChannelLower === 'instagram' && (msgChannel === 'ig' || msgChannel === 'instagram'));
+        });
+        console.log('Filtered by channel:', {
+          filterChannel: params.channel,
+          beforeFilter,
+          afterFilter: messages.length,
+        });
       }
       if (params?.direction) {
         messages = messages.filter((msg) => msg.direction === params.direction);
