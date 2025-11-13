@@ -7,7 +7,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { HttpService } from '@nestjs/axios';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, Not, IsNull } from 'typeorm';
 import { firstValueFrom } from 'rxjs';
 import { Message, MessageChannel, MessageDirection } from '../entities/message.entity';
 import { Client } from '../entities/client.entity';
@@ -160,6 +160,8 @@ export class WhatsAppService {
 
       // Извлекаем номер телефона из chatId (формат: "79001234567@c.us")
       const phoneNumber = chatId.split('@')[0];
+      this.logger.log(`Extracted phone number from chatId ${chatId}: ${phoneNumber}`);
+      
       const messageId = data.idMessage || webhookData.idMessage;
       const timestamp = data.timestamp || webhookData.timestamp || Date.now();
 
@@ -279,14 +281,45 @@ export class WhatsAppService {
   ): Promise<Client> {
     // Нормализуем номер телефона (убираем + и пробелы)
     const normalizedPhone = phoneNumber.replace(/[+\s]/g, '');
+    this.logger.log(`Finding or creating client for phone: ${normalizedPhone}`);
 
-    // Ищем клиента по номеру телефона или WhatsApp ID
+    // Ищем клиента по номеру телефона или WhatsApp ID (точное совпадение)
     let client = await this.clientsRepository.findOne({
       where: [
         { phone: normalizedPhone },
         { whatsappId: normalizedPhone },
       ],
     });
+
+    // Если не нашли точное совпадение, ищем по частичному совпадению whatsappId
+    // (например, если в БД '3223', а приходит '79991234567', ищем клиентов с whatsappId, который содержится в номере)
+    if (!client) {
+      this.logger.log(`No exact match found, searching for partial match...`);
+      
+      // Получаем всех клиентов с whatsappId
+      const allClients = await this.clientsRepository.find({
+        where: { whatsappId: Not(IsNull()) },
+      });
+      
+      // Ищем клиента, у которого whatsappId содержится в normalizedPhone или наоборот
+      client = allClients.find((c) => {
+        if (!c.whatsappId) return false;
+        const clientWhatsappId = c.whatsappId.replace(/[+\s]/g, '');
+        // Проверяем, содержится ли whatsappId клиента в номере или номер в whatsappId
+        return normalizedPhone.includes(clientWhatsappId) || clientWhatsappId.includes(normalizedPhone);
+      }) || null;
+      
+      if (client) {
+        this.logger.log(`Found client by partial match: ${client.id}, whatsappId: ${client.whatsappId}, phone: ${client.phone}`);
+        // Обновляем whatsappId на полный номер, если он был коротким
+        const oldWhatsappId = client.whatsappId;
+        if (normalizedPhone.length > (oldWhatsappId?.length || 0)) {
+          client.whatsappId = normalizedPhone;
+          await this.clientsRepository.save(client);
+          this.logger.log(`Updated client whatsappId from ${oldWhatsappId} to ${normalizedPhone}`);
+        }
+      }
+    }
 
     if (!client) {
       // Используем имя отправителя или создаем имя из номера
@@ -303,15 +336,28 @@ export class WhatsAppService {
       client = await this.clientsRepository.save(client);
       this.logger.log(`Created new client: ${client.id} for phone ${normalizedPhone}`);
     } else {
-      // Обновляем WhatsApp ID, если его нет
-      if (!client.whatsappId) {
+      this.logger.log(`Found existing client: ${client.id}, name: ${client.name}, whatsappId: ${client.whatsappId}, phone: ${client.phone}`);
+      
+      // Обновляем WhatsApp ID, если его нет или если новый номер длиннее (более полный)
+      if (!client.whatsappId || (normalizedPhone.length > client.whatsappId.length && !normalizedPhone.includes(client.whatsappId))) {
+        const oldWhatsappId = client.whatsappId;
         client.whatsappId = normalizedPhone;
         await this.clientsRepository.save(client);
+        this.logger.log(`Updated client whatsappId from ${oldWhatsappId} to ${normalizedPhone}`);
       }
+      
+      // Обновляем phone, если его нет
+      if (!client.phone) {
+        client.phone = normalizedPhone;
+        await this.clientsRepository.save(client);
+        this.logger.log(`Updated client phone to ${normalizedPhone}`);
+      }
+      
       // Обновляем имя, если оно было передано и отличается
       if (senderName && client.name !== senderName && !client.name.includes('WhatsApp')) {
         client.name = senderName;
         await this.clientsRepository.save(client);
+        this.logger.log(`Updated client name to ${senderName}`);
       }
     }
 

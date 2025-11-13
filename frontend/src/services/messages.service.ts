@@ -179,18 +179,41 @@ export const messagesService = {
       if (params?.channel) {
         const filterChannel = params.channel;
         const beforeFilter = messages.length;
+        const filterChannelLower = String(filterChannel).toLowerCase().trim();
+        
         messages = messages.filter((msg) => {
-          const msgChannel = String(msg.channel).toLowerCase();
-          const filterChannelLower = String(filterChannel).toLowerCase();
-          return msgChannel === filterChannelLower || 
-                 (filterChannelLower === 'whatsapp' && (msgChannel === 'wa' || msgChannel === 'whatsapp')) ||
-                 (filterChannelLower === 'telegram' && (msgChannel === 'tg' || msgChannel === 'telegram')) ||
-                 (filterChannelLower === 'instagram' && (msgChannel === 'ig' || msgChannel === 'instagram'));
+          const msgChannel = String(msg.channel || '').toLowerCase().trim();
+          
+          // Прямое совпадение
+          if (msgChannel === filterChannelLower) {
+            return true;
+          }
+          
+          // Специальные случаи для WhatsApp
+          if (filterChannelLower === 'whatsapp' || filterChannelLower === MessageChannel.WHATSAPP.toLowerCase()) {
+            return msgChannel === 'whatsapp' || msgChannel === 'wa' || msgChannel === 'whats_app';
+          }
+          
+          // Специальные случаи для Telegram
+          if (filterChannelLower === 'telegram' || filterChannelLower === MessageChannel.TELEGRAM.toLowerCase()) {
+            return msgChannel === 'telegram' || msgChannel === 'tg' || msgChannel === 'tele_gram';
+          }
+          
+          // Специальные случаи для Instagram
+          if (filterChannelLower === 'instagram' || filterChannelLower === MessageChannel.INSTAGRAM.toLowerCase()) {
+            return msgChannel === 'instagram' || msgChannel === 'ig' || msgChannel === 'insta_gram';
+          }
+          
+          return false;
         });
+        
         console.log('Filtered by channel:', {
           filterChannel: params.channel,
+          filterChannelLower,
           beforeFilter,
           afterFilter: messages.length,
+          availableChannels: [...new Set(messages.map(m => m.channel))],
+          allChannelsBeforeFilter: [...new Set((client.messages || []).map((m: any) => m.channel))],
         });
       }
       if (params?.direction) {
