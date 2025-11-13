@@ -17,6 +17,8 @@ import {
   CircularProgress,
   Alert,
   Button,
+  ToggleButton,
+  ToggleButtonGroup,
 } from '@mui/material';
 import {
   WhatsApp,
@@ -25,6 +27,7 @@ import {
   Search,
   Chat as ChatIcon,
   ArrowBack,
+  FilterList,
 } from '@mui/icons-material';
 import { UnifiedChatWindow } from '../../components/UnifiedChatWindow';
 import { clientsService, type Client } from '../../services/clients.service';
@@ -54,6 +57,8 @@ export const ChatPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [channelFilter, setChannelFilter] = useState<MessageChannel | 'all'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'needs_reply' | 'replied' | 'active' | 'closed'>('all');
 
   useEffect(() => {
     loadClients();
@@ -117,11 +122,13 @@ export const ChatPage: React.FC = () => {
   return (
     <Box
       sx={{
-        minHeight: '100vh',
+        height: '100vh',
         background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
+        display: 'flex',
+        flexDirection: 'column',
       }}
     >
-      <Container maxWidth="xl" sx={{ py: 3 }}>
+      <Container maxWidth="xl" sx={{ py: 3, flex: 1, display: 'flex', flexDirection: 'column' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
           <Button
             startIcon={<ArrowBack />}
@@ -131,7 +138,7 @@ export const ChatPage: React.FC = () => {
             Назад
           </Button>
         </Box>
-        <Grid container spacing={2} sx={{ height: 'calc(100vh - 120px)' }}>
+        <Grid container spacing={2} sx={{ flex: 1, minHeight: 0 }}>
           {/* Clients List */}
           <Grid item xs={12} md={4}>
             <Paper sx={{ height: '100%', display: 'flex', flexDirection: 'column', borderRadius: 3 }}>
@@ -139,22 +146,115 @@ export const ChatPage: React.FC = () => {
                 <Typography variant="h6" fontWeight={600} gutterBottom>
                   Клиенты
                 </Typography>
-              <TextField
-                fullWidth
-                size="small"
-                placeholder="Поиск клиентов..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <Search />
-                    </InputAdornment>
-                  ),
-                }}
-                sx={{ mt: 1 }}
-              />
-            </Box>
+                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mt: 1, flexWrap: 'wrap' }}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    placeholder="Поиск клиентов..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <Search />
+                        </InputAdornment>
+                      ),
+                    }}
+                    sx={{ flex: 1, minWidth: 200 }}
+                  />
+                  
+                  {/* Фильтры рядом с поиском */}
+                  <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap', width: '100%', mt: 1 }}>
+                    <FilterList sx={{ fontSize: 18, color: 'text.secondary' }} />
+                    <Typography variant="body2" color="text.secondary" sx={{ mr: 0.5 }}>
+                      Канал:
+                    </Typography>
+                    <ToggleButtonGroup
+                      value={channelFilter}
+                      exclusive
+                      onChange={(_, value) => {
+                        if (value !== null) {
+                          setChannelFilter(value);
+                        }
+                      }}
+                      size="small"
+                      sx={{
+                        '& .MuiToggleButton-root': {
+                          px: 1.5,
+                          py: 0.5,
+                          textTransform: 'none',
+                          border: '1px solid',
+                          borderColor: 'divider',
+                          fontSize: '0.75rem',
+                        },
+                      }}
+                    >
+                      <ToggleButton value="all">
+                        Все
+                      </ToggleButton>
+                      <ToggleButton value={MessageChannel.WHATSAPP}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          <WhatsApp sx={{ fontSize: 14 }} />
+                          WhatsApp
+                        </Box>
+                      </ToggleButton>
+                      <ToggleButton value={MessageChannel.TELEGRAM}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          <Telegram sx={{ fontSize: 14 }} />
+                          Telegram
+                        </Box>
+                      </ToggleButton>
+                      <ToggleButton value={MessageChannel.INSTAGRAM}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          <Instagram sx={{ fontSize: 14 }} />
+                          Instagram
+                        </Box>
+                      </ToggleButton>
+                    </ToggleButtonGroup>
+                    
+                    <Typography variant="body2" color="text.secondary" sx={{ ml: 1, mr: 0.5 }}>
+                      Статус:
+                    </Typography>
+                    <ToggleButtonGroup
+                      value={statusFilter}
+                      exclusive
+                      onChange={(_, value) => {
+                        if (value !== null) {
+                          setStatusFilter(value);
+                        }
+                      }}
+                      size="small"
+                      sx={{
+                        '& .MuiToggleButton-root': {
+                          px: 1.5,
+                          py: 0.5,
+                          textTransform: 'none',
+                          border: '1px solid',
+                          borderColor: 'divider',
+                          fontSize: '0.75rem',
+                        },
+                      }}
+                    >
+                      <ToggleButton value="all">Все</ToggleButton>
+                      <ToggleButton value="needs_reply">
+                        <Typography variant="body2" color="error.main" sx={{ fontSize: '0.75rem' }}>
+                          Требует ответа
+                        </Typography>
+                      </ToggleButton>
+                      <ToggleButton value="replied">
+                        <Typography variant="body2" color="success.main" sx={{ fontSize: '0.75rem' }}>
+                          Ответили
+                        </Typography>
+                      </ToggleButton>
+                      <ToggleButton value="active">
+                        <Typography variant="body2" color="info.main" sx={{ fontSize: '0.75rem' }}>
+                          Активен
+                        </Typography>
+                      </ToggleButton>
+                    </ToggleButtonGroup>
+                  </Box>
+                </Box>
+              </Box>
 
             {loading ? (
               <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
@@ -200,7 +300,7 @@ export const ChatPage: React.FC = () => {
                         <ListItemText
                           primary={
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <Typography variant="subtitle2" fontWeight={isSelected ? 600 : 400}>
+                              <Typography variant="subtitle2" fontWeight={isSelected ? 600 : 400} component="div">
                                 {client.name}
                               </Typography>
                               {unreadCount > 0 && (
@@ -214,7 +314,7 @@ export const ChatPage: React.FC = () => {
                             </Box>
                           }
                           secondary={
-                            <Box sx={{ display: 'flex', gap: 0.5, mt: 0.5 }}>
+                            <Box component="div" sx={{ display: 'flex', gap: 0.5, mt: 0.5 }}>
                               {channels.map((channel) => {
                                 const Icon = CHANNEL_ICONS[channel];
                                 return (
@@ -247,7 +347,12 @@ export const ChatPage: React.FC = () => {
           <Grid item xs={12} md={8}>
             <Paper sx={{ height: '100%', display: 'flex', flexDirection: 'column', borderRadius: 3 }}>
             {selectedClient ? (
-              <UnifiedChatWindow clientId={selectedClient.id} ticketId={ticketIdParam || undefined} />
+              <UnifiedChatWindow 
+                clientId={selectedClient.id} 
+                ticketId={ticketIdParam || undefined}
+                channelFilter={channelFilter}
+                statusFilter={statusFilter}
+              />
             ) : (
               <Box
                 sx={{

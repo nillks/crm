@@ -11,8 +11,6 @@ import {
   CircularProgress,
   Alert,
   Tooltip,
-  ToggleButton,
-  ToggleButtonGroup,
 } from '@mui/material';
 import {
   Send,
@@ -20,7 +18,6 @@ import {
   Telegram,
   Instagram,
   Refresh,
-  FilterList,
 } from '@mui/icons-material';
 import { messagesService, type Message, MessageChannel, MessageDirection } from '../services/messages.service';
 import { getErrorMessage } from '../utils/errorMessages';
@@ -29,6 +26,8 @@ import { clientsService, type Client } from '../services/clients.service';
 interface UnifiedChatWindowProps {
   clientId?: string;
   ticketId?: string;
+  channelFilter?: MessageChannel | 'all';
+  statusFilter?: 'all' | 'needs_reply' | 'replied' | 'active' | 'closed';
 }
 
 const CHANNEL_ICONS = {
@@ -49,19 +48,26 @@ const CHANNEL_NAMES = {
   [MessageChannel.INSTAGRAM]: 'Instagram',
 };
 
-export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({ clientId, ticketId }) => {
+export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({ 
+  clientId, 
+  ticketId,
+  channelFilter: externalChannelFilter = 'all',
+  statusFilter: externalStatusFilter = 'all',
+}) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState('');
   const [selectedChannel, setSelectedChannel] = useState<MessageChannel | null>(null);
-  const [channelFilter, setChannelFilter] = useState<MessageChannel | 'all'>('all');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'needs_reply' | 'replied' | 'active' | 'closed'>('all');
   const [sending, setSending] = useState(false);
   const [conversationStatus, setConversationStatus] = useState<'active' | 'closed' | 'needs_reply'>('active');
   const [client, setClient] = useState<Client | null>(null);
   const [availableChannels, setAvailableChannels] = useState<MessageChannel[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  
+  // Используем внешние фильтры из props
+  const channelFilter = externalChannelFilter;
+  const statusFilter = externalStatusFilter;
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -173,9 +179,16 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({ clientId, 
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientId, ticketId]);
-  
-  // Отдельный эффект для перезагрузки при изменении фильтров (только для отображения, не перезагружаем с сервера)
-  // Фильтры применяются на клиенте, поэтому не нужно перезагружать данные
+
+  // Автоматическая прокрутка вниз при фильтре "требует ответа"
+  useEffect(() => {
+    if (statusFilter === 'needs_reply' && filteredMessages.length > 0) {
+      setTimeout(() => {
+        scrollToBottom();
+      }, 200);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statusFilter, filteredMessages.length]);
 
   // Автоматическое обновление сообщений каждые 5 секунд
   useEffect(() => {
@@ -346,15 +359,6 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({ clientId, 
       }
     }
   }
-  
-  // Автоматическая прокрутка вниз при фильтре "требует ответа"
-  useEffect(() => {
-    if (statusFilter === 'needs_reply' && filteredMessages.length > 0) {
-      setTimeout(() => {
-        scrollToBottom();
-      }, 200);
-    }
-  }, [statusFilter, filteredMessages.length]);
 
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
@@ -467,111 +471,16 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({ clientId, 
           </Box>
         </Box>
 
-        {/* Filters - перемещены вправо */}
-        <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
-          {filteredMessages.length > 0 && (
+        {/* Информация о количестве сообщений */}
+        {filteredMessages.length > 0 && (
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1 }}>
             <Chip
               label={`${filteredMessages.length} сообщений`}
               size="small"
               sx={{ bgcolor: 'action.selected' }}
             />
-          )}
-          
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-            <FilterList sx={{ fontSize: 18, color: 'text.secondary' }} />
-            <Typography variant="body2" color="text.secondary" sx={{ mr: 1 }}>
-              Канал:
-            </Typography>
-            <ToggleButtonGroup
-              value={channelFilter}
-              exclusive
-              onChange={(_, value) => {
-                if (value !== null) {
-                  setChannelFilter(value);
-                }
-              }}
-              size="small"
-              sx={{
-                '& .MuiToggleButton-root': {
-                  px: 2,
-                  py: 0.5,
-                  textTransform: 'none',
-                  border: '1px solid',
-                  borderColor: 'divider',
-                },
-              }}
-            >
-              <ToggleButton value="all">
-                <Typography variant="body2">Все</Typography>
-              </ToggleButton>
-              <ToggleButton value={MessageChannel.WHATSAPP}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                  {getChannelIcon(MessageChannel.WHATSAPP)}
-                  <Typography variant="body2">{CHANNEL_NAMES[MessageChannel.WHATSAPP]}</Typography>
-                </Box>
-              </ToggleButton>
-              <ToggleButton value={MessageChannel.TELEGRAM}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                  {getChannelIcon(MessageChannel.TELEGRAM)}
-                  <Typography variant="body2">{CHANNEL_NAMES[MessageChannel.TELEGRAM]}</Typography>
-                </Box>
-              </ToggleButton>
-              <ToggleButton value={MessageChannel.INSTAGRAM}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                  {getChannelIcon(MessageChannel.INSTAGRAM)}
-                  <Typography variant="body2">{CHANNEL_NAMES[MessageChannel.INSTAGRAM]}</Typography>
-                </Box>
-              </ToggleButton>
-            </ToggleButtonGroup>
           </Box>
-          
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Typography variant="body2" color="text.secondary">
-              Статус:
-            </Typography>
-            <ToggleButtonGroup
-              value={statusFilter}
-              exclusive
-              onChange={(_, value) => {
-                if (value !== null) {
-                  setStatusFilter(value);
-                  // Если выбран "требует ответа" - прокручиваем вниз
-                  if (value === 'needs_reply') {
-                    setTimeout(() => {
-                      scrollToBottom();
-                    }, 100);
-                  }
-                }
-              }}
-              size="small"
-              sx={{
-                '& .MuiToggleButton-root': {
-                  px: 2,
-                  py: 0.5,
-                  textTransform: 'none',
-                  border: '1px solid',
-                  borderColor: 'divider',
-                },
-              }}
-            >
-              <ToggleButton value="all">
-                <Typography variant="body2">Все</Typography>
-              </ToggleButton>
-              <ToggleButton value="needs_reply">
-                <Typography variant="body2" color="error">Требует ответа</Typography>
-              </ToggleButton>
-              <ToggleButton value="replied">
-                <Typography variant="body2" color="success">Ответили</Typography>
-              </ToggleButton>
-              <ToggleButton value="active">
-                <Typography variant="body2" color="info">Активен</Typography>
-              </ToggleButton>
-              <ToggleButton value="closed">
-                <Typography variant="body2">Завершён</Typography>
-              </ToggleButton>
-            </ToggleButtonGroup>
-          </Box>
-        </Box>
+        )}
       </Paper>
 
       {/* Messages Area */}
