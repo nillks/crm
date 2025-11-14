@@ -31,9 +31,11 @@ async function bootstrap() {
   console.log(`🔍 PORT env var: ${process.env.PORT || 'not set (using default 3000)'}`);
   
   try {
-    await app.listen(port, '0.0.0.0');
+    const server = await app.listen(port, '0.0.0.0');
+    const address = server.address();
     console.log(`🚀 Backend is running on: http://0.0.0.0:${port}/api`);
     console.log(`📡 Server listening on port ${port}`);
+    console.log(`✅ Server address: ${JSON.stringify(address)}`);
     process.stdout.write(`✅ Server started successfully on port ${port}\n`);
   } catch (error) {
     console.error(`❌ Error starting server:`, error);
