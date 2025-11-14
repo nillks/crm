@@ -6,13 +6,23 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   
   // Enable CORS
+  // Поддержка нескольких origin'ов для совместимости со старым и новым frontend
   const corsOrigin = process.env.CORS_ORIGIN || 'http://localhost:5173';
   const corsOrigins = corsOrigin.split(',').map(origin => origin.trim());
   
+  // Добавляем оба возможных frontend URL для совместимости
+  const allowedOrigins = [
+    ...corsOrigins,
+    'https://crm-frontend-8qrl.onrender.com',
+    'https://crm-frontend-zpwa.onrender.com',
+  ].filter((origin, index, self) => self.indexOf(origin) === index); // Убираем дубликаты
+  
   app.enableCors({
-    origin: corsOrigins.length === 1 ? corsOrigins[0] : corsOrigins,
+    origin: allowedOrigins.length === 1 ? allowedOrigins[0] : allowedOrigins,
     credentials: true,
   });
+  
+  console.log(`🌐 CORS configured for origins: ${allowedOrigins.join(', ')}`);
 
   // Enable global validation
   app.useGlobalPipes(
