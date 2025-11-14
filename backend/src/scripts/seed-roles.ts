@@ -1,20 +1,41 @@
 import { DataSource } from 'typeorm';
 import { config } from 'dotenv';
+import * as path from 'path';
 import { Role, RoleName } from '../entities/role.entity';
 
-config();
+config({ path: path.resolve(process.cwd(), '.env') });
 
 async function seedRoles() {
-  const dataSource = new DataSource({
-    type: 'postgres',
-    host: process.env.DB_HOST || 'localhost',
-    port: parseInt(process.env.DB_PORT || '5432'),
-    username: process.env.DB_USERNAME || 'postgres',
-    password: process.env.DB_PASSWORD || 'postgres',
-    database: process.env.DB_DATABASE || 'crm_db',
-    entities: ['src/entities/**/*.entity.ts'],
+  // Парсим DATABASE_URL если он есть
+  let dbConfig: any = {
+    type: 'postgres' as const,
+    entities: [Role],
     synchronize: false,
-  });
+  };
+
+  if (process.env.DATABASE_URL) {
+    const url = new URL(process.env.DATABASE_URL);
+    dbConfig = {
+      ...dbConfig,
+      host: url.hostname,
+      port: parseInt(url.port) || 5432,
+      username: url.username,
+      password: url.password,
+      database: url.pathname.slice(1), // Убираем первый слэш
+      ssl: url.hostname !== 'localhost' && url.hostname !== '127.0.0.1' ? { rejectUnauthorized: false } : false,
+    };
+  } else {
+    dbConfig = {
+      ...dbConfig,
+      host: process.env.DB_HOST || 'localhost',
+      port: parseInt(process.env.DB_PORT || '5432'),
+      username: process.env.DB_USERNAME || 'postgres',
+      password: process.env.DB_PASSWORD || 'postgres',
+      database: process.env.DB_DATABASE || 'crm_db',
+    };
+  }
+
+  const dataSource = new DataSource(dbConfig);
 
   try {
     await dataSource.initialize();
