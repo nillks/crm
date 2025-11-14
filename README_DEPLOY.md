@@ -27,9 +27,25 @@
    **В Frontend сервисе:**
    - `VITE_API_URL` = `https://crm-backend-xxxx.onrender.com/api`
 
-3. **Инициализируйте базу данных:**
+3. **Инициализируйте базу данных (ОБЯЗАТЕЛЬНО!):**
+   
+   **Вариант А: Автоматическое создание (рекомендуется)**
+   - После деплоя перезапустите Backend сервис:
+     - Нажмите "Manual Deploy" → "Clear build cache & deploy"
+     - Или просто "Restart" сервис
+   - Таблицы должны создаться автоматически через `DB_SYNCHRONIZE=true`
+   
+   **Вариант Б: Ручное создание (если автоматическое не сработало)**
    - Откройте Shell в Backend сервисе
-   - Выполните: `cd backend && npm run seed:roles`
+   - Выполните команды:
+     ```bash
+     cd backend
+     npm run init:db      # Создаст все таблицы
+     npm run seed:roles   # Заполнит роли
+     ```
+   
+   **Проверка:**
+   - После инициализации ошибка "relation messages does not exist" должна исчезнуть
 
 ### Шаг 4: Настройте Webhook'и
 - **WhatsApp:** https://console.green-api.com/instanceList
