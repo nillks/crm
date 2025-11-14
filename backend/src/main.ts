@@ -10,7 +10,10 @@ async function bootstrap() {
   // TODO: Вернуть ограничения CORS после тестирования
   // Игнорируем переменную окружения CORS_ORIGIN и разрешаем все origin'ы
   app.enableCors({
-    origin: true, // Разрешить все origin'ы (игнорирует CORS_ORIGIN)
+    origin: (origin, callback) => {
+      // Явно разрешаем все origin'ы, игнорируя переменную окружения
+      callback(null, true);
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
