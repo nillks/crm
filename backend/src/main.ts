@@ -6,42 +6,16 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   
   // Enable CORS
-  // Поддержка нескольких origin'ов для совместимости со старым и новым frontend
-  const corsOrigin = process.env.CORS_ORIGIN || 'http://localhost:5173';
-  const corsOrigins = corsOrigin.split(',').map(origin => origin.trim());
-  
-  // Добавляем оба возможных frontend URL для совместимости
-  const allowedOrigins = [
-    ...corsOrigins,
-    'https://crm-frontend-8qrl.onrender.com',
-    'https://crm-frontend-zpwa.onrender.com',
-    'http://localhost:5173', // Для локальной разработки
-  ].filter((origin, index, self) => self.indexOf(origin) === index); // Убираем дубликаты
-  
-  // Функция для проверки origin'а
-  const corsOptions = {
-    origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
-      // Разрешаем запросы без origin (например, Postman, curl)
-      if (!origin) {
-        return callback(null, true);
-      }
-      
-      // Проверяем, есть ли origin в списке разрешенных
-      if (allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        // Логируем для отладки
-        console.log(`⚠️ CORS: Blocked origin: ${origin}`);
-        console.log(`🌐 Allowed origins: ${allowedOrigins.join(', ')}`);
-        callback(new Error('Not allowed by CORS'));
-      }
-    },
+  // ВРЕМЕННО: Разрешаем все origin'ы для тестирования (НЕБЕЗОПАСНО для production!)
+  // TODO: Вернуть ограничения CORS после тестирования
+  app.enableCors({
+    origin: true, // Разрешить все origin'ы
     credentials: true,
-  };
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  });
   
-  app.enableCors(corsOptions);
-  
-  console.log(`🌐 CORS configured for origins: ${allowedOrigins.join(', ')}`);
+  console.log(`⚠️ CORS: Разрешены ВСЕ origin'ы (только для тестирования!)`);
 
   // Enable global validation
   app.useGlobalPipes(
