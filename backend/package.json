@@ -25,6 +25,7 @@
     "migration:revert": "typeorm-ts-node-commonjs migration:revert -d data-source.ts",
     "migration:show": "typeorm-ts-node-commonjs migration:show -d data-source.ts",
     "seed:roles": "ts-node src/scripts/seed-roles.ts",
+    "seed:roles:direct": "node seed-roles-direct.js",
     "init:db": "ts-node src/scripts/init-db.ts"
   },
   "dependencies": {
