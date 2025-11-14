@@ -14,7 +14,7 @@ services:
   - type: web
     name: crm-backend
     runtime: node
-    plan: free
+    plan: starter
     buildCommand: cd backend && npm install && npm run build
     startCommand: cd backend && npm run start:prod
     envVars:
@@ -51,7 +51,7 @@ services:
   - type: web
     name: crm-frontend
     runtime: static
-    plan: free
+    plan: starter
     buildCommand: cd frontend && npm install && npm run build
     staticPublishPath: frontend/dist
     envVars:
