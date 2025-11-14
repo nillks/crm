@@ -30,9 +30,11 @@ async function bootstrap() {
   await app.init();
   console.log('✅ Application initialized, all routes mapped');
   
-  const port = parseInt(process.env.PORT || '3000', 10);
+  // Render автоматически устанавливает PORT для web-сервисов
+  // Если PORT не установлен, используем 10000 (порт, который ожидает Render)
+  const port = parseInt(process.env.PORT || '10000', 10);
   console.log(`🔧 Starting server on port ${port}...`);
-  console.log(`🔍 PORT env var: ${process.env.PORT || 'not set (using default 3000)'}`);
+  console.log(`🔍 PORT env var: ${process.env.PORT || 'not set (using default 10000)'}`);
   
   try {
     console.log('⏳ Calling app.listen()...');

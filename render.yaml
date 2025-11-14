@@ -17,8 +17,7 @@ services:
     buildCommand: cd backend && npm install && npm run build
     startCommand: cd backend && node dist/src/main.js
     envVars:
-      - key: PORT
-        value: "10000"  # Render ожидает порт 10000
+      # PORT устанавливается автоматически Render на основе настроек сервиса (порт 10000)
       - key: NODE_ENV
         value: production
       - key: DATABASE_URL
