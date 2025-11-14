@@ -56,6 +56,7 @@ services:
     runtime: static
     buildCommand: cd frontend && npm install && npm run build
     staticPublishPath: frontend/dist
+    pullRequestPreviewsEnabled: false
     envVars:
       - key: VITE_API_URL
-        sync: false  # Нужно будет обновить после деплоя backend
+        value: https://crm-backend-pf1k.onrender.com/api
