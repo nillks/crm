@@ -21,4 +21,6 @@ export default defineConfig({
       },
     },
   },
+  // Для правильной работы SPA на Render
+  base: '/',
 })
