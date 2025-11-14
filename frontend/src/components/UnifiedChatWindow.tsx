@@ -73,9 +73,7 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({
   const channelFilter = externalChannelFilter;
   const statusFilter = externalStatusFilter;
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  // scrollToBottom удалена, так как не используется
 
   const loadMessages = async (pageNum: number = 1, append: boolean = false) => {
     try {
@@ -117,8 +115,8 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({
           id: m.id,
           direction: m.direction,
           directionType: typeof m.direction,
-          isInbound: m.direction === MessageDirection.INBOUND || m.direction === 'inbound',
-          isOutbound: m.direction === MessageDirection.OUTBOUND || m.direction === 'outbound',
+          isInbound: (m.direction as string) === MessageDirection.INBOUND || (m.direction as string) === 'inbound',
+          isOutbound: (m.direction as string) === MessageDirection.OUTBOUND || (m.direction as string) === 'outbound',
           content: m.content?.substring(0, 30),
           channel: m.channel,
         })),
@@ -639,7 +637,7 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({
                     sx={{
                       display: 'flex',
                       justifyContent: (() => {
-                        const isInbound = message.direction === MessageDirection.INBOUND || message.direction === 'inbound';
+                        const isInbound = (message.direction as string) === MessageDirection.INBOUND || (message.direction as string) === 'inbound';
                         return isInbound ? 'flex-start' : 'flex-end';
                       })(),
                       mb: 1.5,
@@ -652,14 +650,14 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({
                         display: 'flex',
                         gap: 1.5,
                         flexDirection: (() => {
-                          const isInbound = message.direction === MessageDirection.INBOUND || message.direction === 'inbound';
+                          const isInbound = (message.direction as string) === MessageDirection.INBOUND || (message.direction as string) === 'inbound';
                           return isInbound ? 'row' : 'row-reverse';
                         })(),
                         alignItems: 'flex-end',
                       }}
                     >
                       {(() => {
-                        const isInbound = message.direction === MessageDirection.INBOUND || message.direction === 'inbound';
+                        const isInbound = (message.direction as string) === MessageDirection.INBOUND || (message.direction as string) === 'inbound';
                         return isInbound;
                       })() && (
                         <Avatar
@@ -678,15 +676,15 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({
                         sx={{
                           p: 1.5,
                           borderRadius: (() => {
-                            const isInbound = message.direction === MessageDirection.INBOUND || message.direction === 'inbound';
+                            const isInbound = (message.direction as string) === MessageDirection.INBOUND || (message.direction as string) === 'inbound';
                             return isInbound ? '16px 16px 16px 4px' : '16px 16px 4px 16px';
                           })(),
                           bgcolor: (() => {
-                            const isInbound = message.direction === MessageDirection.INBOUND || message.direction === 'inbound';
+                            const isInbound = (message.direction as string) === MessageDirection.INBOUND || (message.direction as string) === 'inbound';
                             return isInbound ? 'white' : 'primary.main';
                           })(),
                           color: (() => {
-                            const isInbound = message.direction === MessageDirection.INBOUND || message.direction === 'inbound';
+                            const isInbound = (message.direction as string) === MessageDirection.INBOUND || (message.direction as string) === 'inbound';
                             return isInbound ? 'text.primary' : 'white';
                           })(),
                           maxWidth: '100%',
@@ -695,7 +693,7 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({
                       >
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
                           {(() => {
-                            const isInbound = message.direction === MessageDirection.INBOUND || message.direction === 'inbound';
+                            const isInbound = (message.direction as string) === MessageDirection.INBOUND || (message.direction as string) === 'inbound';
                             return isInbound;
                           })() && (
                             <Chip
@@ -730,10 +728,11 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({
                         >
                           {message.content || '[Сообщение без текста]'}
                         </Typography>
-                        {(() => {
-                          const isOutbound = message.direction === MessageDirection.OUTBOUND || message.direction === 'outbound';
-                          return isOutbound;
-                        })() && (
+                      {(() => {
+                        const dir = message.direction as string;
+                        const isOutbound = dir === MessageDirection.OUTBOUND || dir === 'outbound';
+                        return isOutbound;
+                      })() && (
                           <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 0.5, gap: 0.5 }}>
                             {message.isDelivered && (
                               <Typography variant="caption" sx={{ opacity: 0.8, fontSize: '0.75rem' }}>
@@ -749,7 +748,8 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({
                         )}
                       </Paper>
                       {(() => {
-                        const isOutbound = message.direction === MessageDirection.OUTBOUND || message.direction === 'outbound';
+                        const dir = message.direction as string;
+                        const isOutbound = dir === MessageDirection.OUTBOUND || dir === 'outbound';
                         return isOutbound;
                       })() && (
                         <Avatar
