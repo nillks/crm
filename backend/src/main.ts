@@ -26,11 +26,18 @@ async function bootstrap() {
   // Set global prefix for all routes
   app.setGlobalPrefix('api');
   
-  const port = process.env.PORT || 3000;
+  const port = parseInt(process.env.PORT || '3000', 10);
   console.log(`🔧 Starting server on port ${port}...`);
-  await app.listen(port, '0.0.0.0');
-  console.log(`🚀 Backend is running on: http://0.0.0.0:${port}/api`);
-  console.log(`📡 Server listening on port ${port}`);
-  process.stdout.write(`✅ Server started successfully on port ${port}\n`);
+  console.log(`🔍 PORT env var: ${process.env.PORT || 'not set (using default 3000)'}`);
+  
+  try {
+    await app.listen(port, '0.0.0.0');
+    console.log(`🚀 Backend is running on: http://0.0.0.0:${port}/api`);
+    console.log(`📡 Server listening on port ${port}`);
+    process.stdout.write(`✅ Server started successfully on port ${port}\n`);
+  } catch (error) {
+    console.error(`❌ Error starting server:`, error);
+    throw error;
+  }
 }
 bootstrap();
