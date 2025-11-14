@@ -59,4 +59,4 @@ services:
     pullRequestPreviewsEnabled: false
     envVars:
       - key: VITE_API_URL
-        value: https://crm-backend-pf1k.onrender.com/api
+        value: https://crm-backend-fhdw.onrender.com/api

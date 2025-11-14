@@ -1084,7 +1084,7 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
         content: content || '[Сообщение без текста]',
         externalId: messageId || `green-${Date.now()}`,
         clientId: client.id,
-        ticketId: ticket.id,
+        ticketId: ticket?.id || null,
         isRead: false,
         isDelivered: true,
         deliveredAt: new Date(timestamp * 1000),
@@ -1360,7 +1360,7 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
   /**
    * Найти или создать тикет для клиента
    */
-  private async findOrCreateTicket(client: Client): Promise<Ticket> {
+  private async findOrCreateTicket(client: Client): Promise<Ticket | null> {
     // Ищем открытый тикет для этого клиента в WhatsApp
     let ticket = await this.ticketsRepository.findOne({
       where: {
@@ -1382,7 +1382,9 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
         .getOne();
 
       if (!adminUser) {
-        throw new NotFoundException('Admin user not found for ticket creation');
+        // Если нет админа, просто возвращаем null - сообщение все равно сохранится
+        this.logger.warn('Admin user not found for ticket creation. Message will be saved without ticket.');
+        return null;
       }
 
       ticket = this.ticketsRepository.create({

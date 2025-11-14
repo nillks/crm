@@ -147,7 +147,7 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
         content,
         externalId: `telegram-${messageId}`,
         clientId: client.id,
-        ticketId: ticket.id,
+        ticketId: ticket?.id || null,
         isRead: false,
         isDelivered: true,
         deliveredAt: new Date(timestamp),
@@ -206,7 +206,7 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
   /**
    * Найти или создать тикет для клиента
    */
-  private async findOrCreateTicket(client: Client): Promise<Ticket> {
+  private async findOrCreateTicket(client: Client): Promise<Ticket | null> {
     // Ищем открытый тикет для этого клиента в Telegram
     let ticket = await this.ticketsRepository.findOne({
       where: {
@@ -226,7 +226,8 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
         .getOne();
 
       if (!adminUser) {
-        throw new NotFoundException('Admin user not found for ticket creation');
+        this.logger.warn('Admin user not found for ticket creation. Message will be saved without ticket.');
+        return null;
       }
 
       ticket = this.ticketsRepository.create({

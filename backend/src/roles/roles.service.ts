@@ -64,4 +64,38 @@ export class RolesService {
   hasRole(user: User, roles: RoleName[]): boolean {
     return roles.includes(user.role?.name);
   }
+
+  async seedRoles(): Promise<{ created: number; existing: number; roles: Role[] }> {
+    const rolesToCreate = [
+      { name: RoleName.ADMIN, description: 'Администратор/директор - полный доступ' },
+      { name: RoleName.OPERATOR1, description: 'Оператор линии №1' },
+      { name: RoleName.OPERATOR2, description: 'Оператор линии №2' },
+      { name: RoleName.OPERATOR3, description: 'Оператор линии №3' },
+    ];
+
+    let createdCount = 0;
+    let existingCount = 0;
+
+    for (const roleData of rolesToCreate) {
+      const existing = await this.rolesRepository.findOne({
+        where: { name: roleData.name },
+      });
+
+      if (!existing) {
+        const role = this.rolesRepository.create(roleData);
+        await this.rolesRepository.save(role);
+        createdCount++;
+      } else {
+        existingCount++;
+      }
+    }
+
+    const allRoles = await this.rolesRepository.find();
+
+    return {
+      created: createdCount,
+      existing: existingCount,
+      roles: allRoles,
+    };
+  }
 }

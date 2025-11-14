@@ -322,7 +322,7 @@ export class InstagramService implements OnModuleInit, OnModuleDestroy {
         content: text,
         externalId: `instagram-${messageId}`,
         clientId: client.id,
-        ticketId: ticket.id,
+        ticketId: ticket?.id || null,
         isRead: false,
         isDelivered: true,
         deliveredAt: new Date(timestamp),
@@ -484,7 +484,7 @@ export class InstagramService implements OnModuleInit, OnModuleDestroy {
         content: text,
         externalId: `instagram-${finalMessageId}`,
         clientId: client.id,
-        ticketId: ticket.id,
+        ticketId: ticket?.id || null,
         isRead: false,
         isDelivered: true,
         deliveredAt: new Date(typeof timestamp === 'number' ? timestamp * 1000 : timestamp),
@@ -537,7 +537,7 @@ export class InstagramService implements OnModuleInit, OnModuleDestroy {
             content: text,
             externalId: `instagram-${messageId}`,
             clientId: client.id,
-            ticketId: ticket.id,
+            ticketId: ticket?.id || null,
             isRead: false,
             isDelivered: true,
             deliveredAt: new Date(timestamp * 1000),
@@ -592,7 +592,7 @@ export class InstagramService implements OnModuleInit, OnModuleDestroy {
   /**
    * Найти или создать тикет для клиента
    */
-  private async findOrCreateTicket(client: Client): Promise<Ticket> {
+  private async findOrCreateTicket(client: Client): Promise<Ticket | null> {
     // Ищем открытый тикет для этого клиента в Instagram
     let ticket = await this.ticketsRepository.findOne({
       where: {
@@ -612,7 +612,8 @@ export class InstagramService implements OnModuleInit, OnModuleDestroy {
         .getOne();
 
       if (!adminUser) {
-        throw new NotFoundException('Admin user not found for ticket creation');
+        this.logger.warn('Admin user not found for ticket creation. Message will be saved without ticket.');
+        return null;
       }
 
       ticket = this.ticketsRepository.create({
