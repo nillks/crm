@@ -8,14 +8,17 @@ async function bootstrap() {
   // Enable CORS
   // ВРЕМЕННО: Разрешаем все origin'ы для тестирования (НЕБЕЗОПАСНО для production!)
   // TODO: Вернуть ограничения CORS после тестирования
+  // Игнорируем переменную окружения CORS_ORIGIN и разрешаем все origin'ы
   app.enableCors({
-    origin: true, // Разрешить все origin'ы
+    origin: true, // Разрешить все origin'ы (игнорирует CORS_ORIGIN)
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    exposedHeaders: ['Content-Type', 'Authorization'],
   });
   
   console.log(`⚠️ CORS: Разрешены ВСЕ origin'ы (только для тестирования!)`);
+  console.log(`⚠️ CORS_ORIGIN env var игнорируется: ${process.env.CORS_ORIGIN || 'not set'}`);
 
   // Enable global validation
   app.useGlobalPipes(
