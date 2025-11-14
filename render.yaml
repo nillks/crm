@@ -1,14 +1,7 @@
 # Render Blueprint для автоматического деплоя
-# Используйте этот файл для быстрого деплоя всех сервисов сразу
+# ВАЖНО: PostgreSQL базу данных нужно создать вручную (см. инструкцию ниже)
 
 services:
-  # PostgreSQL Database
-  - type: postgres
-    name: crm-database
-    plan: free
-    databaseName: crm_db
-    databaseUser: crm_user
-
   # Backend API
   - type: web
     name: crm-backend
@@ -22,10 +15,7 @@ services:
       - key: PORT
         value: 3000
       - key: DATABASE_URL
-        fromService:
-          type: postgres
-          name: crm-database
-          property: connectionString
+        sync: false  # Нужно будет добавить после создания PostgreSQL вручную
       - key: JWT_SECRET
         generateValue: true
       - key: JWT_EXPIRES_IN
