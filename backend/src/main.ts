@@ -26,12 +26,19 @@ async function bootstrap() {
   // Set global prefix for all routes
   app.setGlobalPrefix('api');
   
+  // Initialize the application to ensure all routes are mapped
+  await app.init();
+  console.log('✅ Application initialized, all routes mapped');
+  
   const port = parseInt(process.env.PORT || '3000', 10);
   console.log(`🔧 Starting server on port ${port}...`);
   console.log(`🔍 PORT env var: ${process.env.PORT || 'not set (using default 3000)'}`);
   
   try {
+    console.log('⏳ Calling app.listen()...');
     const server = await app.listen(port, '0.0.0.0');
+    console.log('✅ app.listen() resolved');
+    
     const address = server.address();
     let url: string;
     if (typeof address === 'string') {
