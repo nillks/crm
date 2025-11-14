@@ -1,2 +1,0 @@
-VITE_API_URL=https://crm-backend-pf1k.onrender.com/api
-
