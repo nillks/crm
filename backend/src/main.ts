@@ -33,9 +33,19 @@ async function bootstrap() {
   try {
     const server = await app.listen(port, '0.0.0.0');
     const address = server.address();
-    console.log(`🚀 Backend is running on: http://0.0.0.0:${port}/api`);
+    let url: string;
+    if (typeof address === 'string') {
+      url = address;
+    } else if (address) {
+      const host = address.address === '::' ? '0.0.0.0' : address.address;
+      url = `http://${host}:${address.port}`;
+    } else {
+      url = `http://0.0.0.0:${port}`;
+    }
+    console.log(`🚀 Backend is running on: ${url}/api`);
     console.log(`📡 Server listening on port ${port}`);
     console.log(`✅ Server address: ${JSON.stringify(address)}`);
+    console.log(`✅ Server URL: ${url}`);
     process.stdout.write(`✅ Server started successfully on port ${port}\n`);
   } catch (error) {
     console.error(`❌ Error starting server:`, error);
