@@ -15,7 +15,7 @@ services:
     name: crm-backend
     runtime: node
     buildCommand: cd backend && npm install && npm run build
-    startCommand: cd backend && npm run start:prod
+    startCommand: cd backend && node dist/src/main.js
     envVars:
       - key: NODE_ENV
         value: production
