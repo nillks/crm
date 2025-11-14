@@ -29,7 +29,7 @@ services:
       - key: JWT_EXPIRES_IN
         value: 24h
       - key: CORS_ORIGIN
-        sync: false  # Нужно будет обновить после деплоя frontend
+        value: https://crm-frontend-8qrl.onrender.com
       - key: WHATSAPP_API_URL
         value: https://7107.api.green-api.com
       - key: WHATSAPP_ID_INSTANCE
