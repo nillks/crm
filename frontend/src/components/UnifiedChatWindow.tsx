@@ -66,6 +66,8 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({
   const [client, setClient] = useState<Client | null>(null);
   const [availableChannels, setAvailableChannels] = useState<MessageChannel[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const lastMessageCountRef = useRef<number>(0);
+  const isUserScrolledUpRef = useRef<boolean>(false);
   
   // Используем внешние фильтры из props
   const channelFilter = externalChannelFilter;
@@ -111,6 +113,15 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({
         clientId,
         channels: [...new Set(response.data.map((m: Message) => m.channel))],
         directions: [...new Set(response.data.map((m: Message) => m.direction))],
+        messageDirections: response.data.map((m: Message) => ({
+          id: m.id,
+          direction: m.direction,
+          directionType: typeof m.direction,
+          isInbound: m.direction === MessageDirection.INBOUND || m.direction === 'inbound',
+          isOutbound: m.direction === MessageDirection.OUTBOUND || m.direction === 'outbound',
+          content: m.content?.substring(0, 30),
+          channel: m.channel,
+        })),
       });
       
       // Если сообщений нет, но клиент выбран - проверяем данные клиента
@@ -139,6 +150,8 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({
         setMessages((prev) => [...prev, ...response.data]);
       } else {
         setMessages(response.data);
+        // Обновляем счетчик сообщений
+        lastMessageCountRef.current = response.data.length;
       }
       
       // Определяем статус разговора
@@ -179,17 +192,96 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({
   }, [clientId, ticketId, channelFilter, statusFilter]);
 
 
-  // Автоматическое обновление сообщений каждые 5 секунд
+  // Автоматическое обновление сообщений каждые 3 секунды
+  // Обновляем только если пользователь не прокрутил вверх (находится внизу)
   useEffect(() => {
     if (!clientId) return;
 
-    const interval = setInterval(() => {
-      loadMessages(1, false);
-    }, 5000); // Обновляем каждые 5 секунд
+    const messagesContainer = document.getElementById('messages-container');
 
-    return () => clearInterval(interval);
+    const checkScrollPosition = () => {
+      if (messagesContainer) {
+        const { scrollTop, scrollHeight, clientHeight } = messagesContainer;
+        // Пользователь прокрутил вверх, если он не внизу (с запасом 100px)
+        isUserScrolledUpRef.current = scrollTop + clientHeight < scrollHeight - 100;
+      }
+    };
+
+    const interval = setInterval(async () => {
+      checkScrollPosition();
+      
+      // Если пользователь прокрутил вверх, не обновляем автоматически
+      // Но проверяем количество сообщений, чтобы знать, когда появились новые
+      if (isUserScrolledUpRef.current) {
+        // Тихо проверяем, есть ли новые сообщения
+        try {
+          const params: any = {
+            page: 1,
+            limit: 50,
+            sortBy: 'createdAt',
+            sortOrder: 'ASC',
+            clientId,
+          };
+          if (channelFilter !== 'all') {
+            params.channel = channelFilter;
+          }
+          const response = await messagesService.getMessages(params);
+          
+          // Если появились новые сообщения, обновляем список
+          if (response.data.length > lastMessageCountRef.current) {
+            setMessages(response.data);
+            lastMessageCountRef.current = response.data.length;
+          }
+        } catch (err) {
+          // Игнорируем ошибки при фоновом обновлении
+        }
+      } else {
+        // Пользователь внизу - обновляем полностью
+        try {
+          const params: any = {
+            page: 1,
+            limit: 50,
+            sortBy: 'createdAt',
+            sortOrder: 'ASC',
+            clientId,
+          };
+          if (channelFilter !== 'all') {
+            params.channel = channelFilter;
+          }
+          const response = await messagesService.getMessages(params);
+          
+          // Обновляем сообщения только если они изменились
+          if (response.data.length !== lastMessageCountRef.current || 
+              response.data.length > 0 && response.data[response.data.length - 1].id !== messages[messages.length - 1]?.id) {
+            setMessages(response.data);
+            lastMessageCountRef.current = response.data.length;
+            // Автоматически прокручиваем вниз, если пользователь был внизу
+            setTimeout(() => {
+              messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+            }, 100);
+          }
+        } catch (err) {
+          // Игнорируем ошибки при фоновом обновлении
+        }
+      }
+    }, 3000); // Обновляем каждые 3 секунды
+
+    // Отслеживаем скролл для определения позиции пользователя
+    if (messagesContainer) {
+      messagesContainer.addEventListener('scroll', checkScrollPosition);
+    }
+
+    // Инициализируем счетчик при первой загрузке
+    lastMessageCountRef.current = messages.length;
+
+    return () => {
+      clearInterval(interval);
+      if (messagesContainer) {
+        messagesContainer.removeEventListener('scroll', checkScrollPosition);
+      }
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clientId]);
+  }, [clientId, channelFilter]);
 
   const loadClientData = async () => {
     if (!clientId) return;
@@ -474,6 +566,7 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({
 
       {/* Messages Area */}
       <Box
+        id="messages-container"
         sx={{
           flex: 1,
           overflow: 'auto',
@@ -545,7 +638,10 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({
                   <Box
                     sx={{
                       display: 'flex',
-                      justifyContent: message.direction === MessageDirection.INBOUND ? 'flex-start' : 'flex-end',
+                      justifyContent: (() => {
+                        const isInbound = message.direction === MessageDirection.INBOUND || message.direction === 'inbound';
+                        return isInbound ? 'flex-start' : 'flex-end';
+                      })(),
                       mb: 1.5,
                       px: 1,
                     }}
@@ -555,11 +651,17 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({
                         maxWidth: '75%',
                         display: 'flex',
                         gap: 1.5,
-                        flexDirection: message.direction === MessageDirection.INBOUND ? 'row' : 'row-reverse',
+                        flexDirection: (() => {
+                          const isInbound = message.direction === MessageDirection.INBOUND || message.direction === 'inbound';
+                          return isInbound ? 'row' : 'row-reverse';
+                        })(),
                         alignItems: 'flex-end',
                       }}
                     >
-                      {message.direction === MessageDirection.INBOUND && (
+                      {(() => {
+                        const isInbound = message.direction === MessageDirection.INBOUND || message.direction === 'inbound';
+                        return isInbound;
+                      })() && (
                         <Avatar
                           sx={{
                             width: 36,
@@ -575,17 +677,27 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({
                         elevation={2}
                         sx={{
                           p: 1.5,
-                          borderRadius: message.direction === MessageDirection.INBOUND 
-                            ? '16px 16px 16px 4px' 
-                            : '16px 16px 4px 16px',
-                          bgcolor: message.direction === MessageDirection.INBOUND ? 'white' : 'primary.main',
-                          color: message.direction === MessageDirection.INBOUND ? 'text.primary' : 'white',
+                          borderRadius: (() => {
+                            const isInbound = message.direction === MessageDirection.INBOUND || message.direction === 'inbound';
+                            return isInbound ? '16px 16px 16px 4px' : '16px 16px 4px 16px';
+                          })(),
+                          bgcolor: (() => {
+                            const isInbound = message.direction === MessageDirection.INBOUND || message.direction === 'inbound';
+                            return isInbound ? 'white' : 'primary.main';
+                          })(),
+                          color: (() => {
+                            const isInbound = message.direction === MessageDirection.INBOUND || message.direction === 'inbound';
+                            return isInbound ? 'text.primary' : 'white';
+                          })(),
                           maxWidth: '100%',
                           wordBreak: 'break-word',
                         }}
                       >
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                          {message.direction === MessageDirection.INBOUND && (
+                          {(() => {
+                            const isInbound = message.direction === MessageDirection.INBOUND || message.direction === 'inbound';
+                            return isInbound;
+                          })() && (
                             <Chip
                               icon={getChannelIcon(message.channel)}
                               label={CHANNEL_NAMES[message.channel]}
@@ -616,9 +728,12 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({
                             lineHeight: 1.5,
                           }}
                         >
-                          {message.content}
+                          {message.content || '[Сообщение без текста]'}
                         </Typography>
-                        {message.direction === MessageDirection.OUTBOUND && (
+                        {(() => {
+                          const isOutbound = message.direction === MessageDirection.OUTBOUND || message.direction === 'outbound';
+                          return isOutbound;
+                        })() && (
                           <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 0.5, gap: 0.5 }}>
                             {message.isDelivered && (
                               <Typography variant="caption" sx={{ opacity: 0.8, fontSize: '0.75rem' }}>
@@ -633,7 +748,10 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({
                           </Box>
                         )}
                       </Paper>
-                      {message.direction === MessageDirection.OUTBOUND && (
+                      {(() => {
+                        const isOutbound = message.direction === MessageDirection.OUTBOUND || message.direction === 'outbound';
+                        return isOutbound;
+                      })() && (
                         <Avatar
                           sx={{
                             width: 36,

@@ -1,0 +1,77 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: crm-postgres
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:-crm_db}
+      POSTGRES_USER: ${DB_USERNAME:-crm_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-crm_user}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - crm-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: crm-backend
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USERNAME=${DB_USERNAME:-crm_user}
+      - DB_PASSWORD=${DB_PASSWORD:-postgres}
+      - DB_DATABASE=${DB_DATABASE:-crm_db}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-24h}
+      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:5173}
+      - WHATSAPP_API_URL=${WHATSAPP_API_URL}
+      - WHATSAPP_ID_INSTANCE=${WHATSAPP_ID_INSTANCE}
+      - WHATSAPP_API_TOKEN_INSTANCE=${WHATSAPP_API_TOKEN_INSTANCE}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - INSTAGRAM_API_URL=${INSTAGRAM_API_URL}
+      - INSTAGRAM_ACCESS_TOKEN=${INSTAGRAM_ACCESS_TOKEN}
+      - INSTAGRAM_USE_CHATRACE=${INSTAGRAM_USE_CHATRACE:-true}
+      - INSTAGRAM_USE_MOCK=${INSTAGRAM_USE_MOCK:-false}
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./backend/logs:/app/logs
+    networks:
+      - crm-network
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: crm-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - crm-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+
+networks:
+  crm-network:
+    driver: bridge
+

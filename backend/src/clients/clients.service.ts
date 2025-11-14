@@ -117,10 +117,35 @@ export class ClientsService {
         .leftJoinAndSelect('client.messages', 'messages')
         .where('client.id = :id', { id })
         .orderBy('messages.createdAt', 'ASC')
+        .addOrderBy('messages.id', 'ASC') // Дополнительная сортировка для стабильности
         .getOne();
 
       if (!client) {
         throw new NotFoundException(`Клиент с ID ${id} не найден`);
+      }
+
+      // Диагностика: проверяем, что сообщения загружены
+      console.log(`[ClientsService] Loaded client ${id} with ${client.messages?.length || 0} messages`);
+      console.log(`[ClientsService] Client whatsappId: ${client.whatsappId}, phone: ${client.phone}`);
+      if (client.messages && client.messages.length > 0) {
+        console.log(`[ClientsService] Message channels:`, [...new Set(client.messages.map((m: any) => m.channel))]);
+        console.log(`[ClientsService] Message directions:`, [...new Set(client.messages.map((m: any) => m.direction))]);
+        console.log(`[ClientsService] Sample messages (first 3):`, client.messages.slice(0, 3).map((m: any) => ({
+          id: m.id,
+          channel: m.channel,
+          direction: m.direction,
+          content: m.content?.substring(0, 50),
+          clientId: m.clientId,
+          createdAt: m.createdAt,
+        })));
+      } else {
+        console.warn(`[ClientsService] ⚠️ No messages found for client ${id}!`);
+        console.warn(`[ClientsService] Client data:`, {
+          id: client.id,
+          whatsappId: client.whatsappId,
+          phone: client.phone,
+          name: client.name,
+        });
       }
 
       // Загружаем остальные relations если нужно

@@ -136,23 +136,43 @@ export const messagesService = {
           channel = MessageChannel.WHATSAPP;
         }
         
-        // Нормализуем direction
+        // Нормализуем direction - ВАЖНО: сохраняем исходное значение из БД
         let direction = msg.direction;
         if (direction) {
-          direction = String(direction).toLowerCase();
-          if (direction === 'inbound' || direction === 'incoming' || direction === 'received') {
+          const directionStr = String(direction).toLowerCase().trim();
+          // Проверяем точное совпадение с enum значениями
+          if (directionStr === MessageDirection.INBOUND || directionStr === 'inbound') {
             direction = MessageDirection.INBOUND;
-          } else if (direction === 'outbound' || direction === 'outgoing' || direction === 'sent') {
+          } else if (directionStr === MessageDirection.OUTBOUND || directionStr === 'outbound') {
+            direction = MessageDirection.OUTBOUND;
+          } else if (directionStr === 'incoming' || directionStr === 'received') {
+            // Альтернативные названия для входящих
+            direction = MessageDirection.INBOUND;
+          } else if (directionStr === 'outgoing' || directionStr === 'sent') {
+            // Альтернативные названия для исходящих
             direction = MessageDirection.OUTBOUND;
           } else {
             // Если не распознали - проверяем через enum
-            if (!Object.values(MessageDirection).includes(direction as MessageDirection)) {
-              console.warn('Invalid direction:', direction, 'defaulting to inbound');
+            if (Object.values(MessageDirection).includes(direction as MessageDirection)) {
+              // Уже правильный формат
+            } else {
+              console.warn('Invalid direction:', direction, 'for message:', msg.id, 'defaulting to inbound. Original:', msg.direction);
               direction = MessageDirection.INBOUND;
             }
           }
         } else {
+          console.warn('Direction is missing for message:', msg.id, 'defaulting to inbound');
           direction = MessageDirection.INBOUND;
+        }
+        
+        // Логируем для отладки проблем с direction
+        if (msg.id && direction !== MessageDirection.INBOUND && direction !== MessageDirection.OUTBOUND) {
+          console.warn('Direction normalization issue:', {
+            messageId: msg.id,
+            originalDirection: msg.direction,
+            normalizedDirection: direction,
+            channel: channel,
+          });
         }
         
         return {

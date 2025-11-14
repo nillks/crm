@@ -1,10 +1,26 @@
 import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { defineAbilityFor, AppAbility, Action, Subject } from './abilities.definition';
-import { RoleName } from '../entities/role.entity';
+import { RoleName, Role } from '../entities/role.entity';
 import { User } from '../entities/user.entity';
 
 @Injectable()
 export class RolesService {
+  constructor(
+    @InjectRepository(Role)
+    private rolesRepository: Repository<Role>,
+  ) {}
+
+  /**
+   * Получить все роли
+   */
+  async findAll(): Promise<Role[]> {
+    return this.rolesRepository.find({
+      order: { name: 'ASC' },
+    });
+  }
+
   /**
    * Получить права доступа для пользователя на основе его роли
    */

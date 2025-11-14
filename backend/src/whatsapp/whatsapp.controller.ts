@@ -102,5 +102,23 @@ export class WhatsAppController {
   async getStats() {
     return this.whatsappService.getStats();
   }
+
+  /**
+   * Ручная проверка новых сообщений (для тестирования)
+   * Требуется право: read Message
+   */
+  @Get('check-messages')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions({ action: Action.Read, subject: Subject.Message })
+  async checkMessages() {
+    this.logger.log('🔍 Manual message check requested');
+    try {
+      await this.whatsappService.checkForNewMessages();
+      return { success: true, message: 'Message check completed' };
+    } catch (error) {
+      this.logger.error('Error in manual message check:', error);
+      return { success: false, error: error.message };
+    }
+  }
 }
 

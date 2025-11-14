@@ -19,6 +19,7 @@ import {
 import { Visibility, VisibilityOff, PersonAdd } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import { getErrorMessage } from '../../utils/errorMessages';
+import api from '../../services/api';
 
 interface Role {
   id: string;
@@ -43,21 +44,14 @@ export const RegisterPage: React.FC = () => {
   const [loadingRoles, setLoadingRoles] = useState(true);
 
   useEffect(() => {
-    // Загружаем роли из БД
-    // Пока используем хардкод, так как endpoint для ролей еще не создан
-    // В будущем можно добавить GET /roles endpoint
+    // Загружаем роли из API
     const loadRoles = async () => {
       try {
-        // Временное решение: используем известные UUID из seed скрипта
-        // В продакшене нужно создать endpoint для получения ролей
-        setRoles([
-          { id: '7c7667c1-cf55-4bdf-9c5b-c0b1f3b775d3', name: 'admin', description: 'Администратор' },
-          { id: '9328ddb4-668c-45be-88c4-8d7524c089c9', name: 'operator1', description: 'Оператор линии №1' },
-          { id: 'f38e0ba6-a8d0-47d3-86f2-2c415233869c', name: 'operator2', description: 'Оператор линии №2' },
-          { id: '44f11e33-cf39-47ae-9759-456d7a878666', name: 'operator3', description: 'Оператор линии №3' },
-        ]);
+        const response = await api.get('/roles');
+        setRoles(response.data);
       } catch (err) {
         console.error('Ошибка загрузки ролей:', err);
+        setError('Не удалось загрузить список ролей. Пожалуйста, обновите страницу.');
       } finally {
         setLoadingRoles(false);
       }

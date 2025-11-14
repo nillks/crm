@@ -32,13 +32,21 @@ export class InstagramController {
   @Post('webhook')
   @HttpCode(HttpStatus.OK)
   async handleWebhook(@Body() body: any) {
-    this.logger.log('Received webhook from Instagram/Chatrace');
+    this.logger.log('═══════════════════════════════════════════════════════');
+    this.logger.log('📨 Received webhook from Instagram/Chatrace');
+    this.logger.log(`📅 Time: ${new Date().toISOString()}`);
+    this.logger.log(`📦 Body type: ${typeof body}`);
+    this.logger.log(`📦 Body keys: ${Object.keys(body || {}).join(', ')}`);
+    this.logger.log(`📦 Full body: ${JSON.stringify(body, null, 2)}`);
+    this.logger.log('═══════════════════════════════════════════════════════');
     
     try {
       await this.instagramService.handleWebhook(body);
+      this.logger.log('✅ Webhook processed successfully');
       return { success: true };
     } catch (error) {
-      this.logger.error('Error handling webhook:', error);
+      this.logger.error('❌ Error handling webhook:', error);
+      this.logger.error(`❌ Error stack: ${error.stack}`);
       // Всегда возвращаем 200, чтобы не повторяли запрос
       return { success: false, error: error.message };
     }
@@ -65,6 +73,35 @@ export class InstagramController {
   @RequirePermissions({ action: Action.Read, subject: Subject.Message })
   getConfig() {
     return this.instagramService.getConfig();
+  }
+
+  /**
+   * Ручная проверка новых сообщений (для тестирования)
+   * Требуется право: read Message
+   */
+  @Get('check-messages')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions({ action: Action.Read, subject: Subject.Message })
+  async checkMessages() {
+    this.logger.log('🔍 Manual Instagram message check requested');
+    try {
+      await this.instagramService.checkForNewMessages();
+      return { success: true, message: 'Message check completed' };
+    } catch (error) {
+      this.logger.error('Error in manual Instagram message check:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Получить статистику Instagram сообщений (для диагностики)
+   * Требуется право: read Message
+   */
+  @Get('stats')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions({ action: Action.Read, subject: Subject.Message })
+  async getStats() {
+    return this.instagramService.getStats();
   }
 }
 

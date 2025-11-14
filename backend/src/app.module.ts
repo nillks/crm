@@ -26,20 +26,44 @@ import { TestPermissionsController } from './roles/test-permissions.controller';
     }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
-      useFactory: (configService: ConfigService) => ({
-        type: 'postgres',
-        host: configService.get('DB_HOST', 'localhost'),
-        port: configService.get('DB_PORT', 5432),
-        username: configService.get('DB_USERNAME', 'postgres'),
-        password: configService.get('DB_PASSWORD', 'postgres'),
-        database: configService.get('DB_DATABASE', 'crm_db'),
-        entities: AllEntities,
-        synchronize: configService.get('NODE_ENV') !== 'production',
-        logging: configService.get('NODE_ENV') === 'development',
-        migrations: ['dist/migrations/*.js'],
-        migrationsRun: false,
-        autoLoadEntities: true,
-      }),
+      useFactory: (configService: ConfigService) => {
+        // Поддержка DATABASE_URL для Render и других платформ
+        const databaseUrl = configService.get('DATABASE_URL');
+        if (databaseUrl) {
+          // Парсим DATABASE_URL: postgresql://user:password@host:port/database
+          const url = new URL(databaseUrl);
+          return {
+            type: 'postgres',
+            host: url.hostname,
+            port: parseInt(url.port) || 5432,
+            username: url.username,
+            password: url.password,
+            database: url.pathname.slice(1), // Убираем первый слэш
+            entities: AllEntities,
+            synchronize: configService.get('NODE_ENV') !== 'production',
+            logging: configService.get('NODE_ENV') === 'development',
+            migrations: ['dist/migrations/*.js'],
+            migrationsRun: false,
+            autoLoadEntities: true,
+            ssl: url.hostname !== 'localhost' && url.hostname !== '127.0.0.1' ? { rejectUnauthorized: false } : false,
+          };
+        }
+        // Fallback на отдельные переменные
+        return {
+          type: 'postgres',
+          host: configService.get('DB_HOST', 'localhost'),
+          port: configService.get('DB_PORT', 5432),
+          username: configService.get('DB_USERNAME', 'postgres'),
+          password: configService.get('DB_PASSWORD', 'postgres'),
+          database: configService.get('DB_DATABASE', 'crm_db'),
+          entities: AllEntities,
+          synchronize: configService.get('NODE_ENV') !== 'production',
+          logging: configService.get('NODE_ENV') === 'development',
+          migrations: ['dist/migrations/*.js'],
+          migrationsRun: false,
+          autoLoadEntities: true,
+        };
+      },
       inject: [ConfigService],
     }),
     AuthModule,

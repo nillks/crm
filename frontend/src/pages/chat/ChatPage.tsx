@@ -84,9 +84,132 @@ export const ChatPage: React.FC = () => {
         sortBy: 'updatedAt',
         sortOrder: 'DESC',
       });
-      setClients(response.data);
+      
+      // Дедупликация клиентов по нормализованному номеру телефона
+      const normalizedClients = new Map<string, Client>();
+      
+      // Функция нормализации номера - более агрессивная нормализация
+      const normalizePhone = (phone: string | null | undefined): string => {
+        if (!phone) return '';
+        let normalized = phone.replace(/[+\s()\-]/g, '').toLowerCase();
+        // Убираем ведущие нули и нормализуем код страны
+        if (normalized.startsWith('8') && normalized.length > 11) {
+          normalized = '7' + normalized.substring(1);
+        }
+        if (!normalized.startsWith('7') && normalized.length >= 10) {
+          normalized = '7' + normalized;
+        }
+        // Убираем ведущие нули после кода страны
+        if (normalized.startsWith('7') && normalized.length > 11 && normalized[1] === '0') {
+          normalized = '7' + normalized.substring(2);
+        }
+        // Берем только последние 11 цифр (код страны + номер)
+        if (normalized.length > 11) {
+          normalized = normalized.slice(-11);
+        }
+        return normalized;
+      };
+      
+      response.data.forEach((client: Client) => {
+        const phoneKey = normalizePhone(client.phone || client.whatsappId || '');
+        const clientId = client.id;
+        
+        // Если клиент с таким нормализованным номером уже есть, объединяем
+        if (phoneKey && normalizedClients.has(phoneKey)) {
+          const existingClient = normalizedClients.get(phoneKey)!;
+          
+          // Объединяем сообщения, убирая дубликаты по externalId
+          const existingMessageIds = new Set((existingClient.messages || []).map((m: any) => m.externalId || m.id));
+          const newMessages = (client.messages || []).filter((m: any) => 
+            !existingMessageIds.has(m.externalId || m.id)
+          );
+          
+          // Объединяем и сортируем сообщения по дате
+          const allMessages = [...(existingClient.messages || []), ...newMessages].sort((a: any, b: any) => {
+            const dateA = new Date(a.createdAt || 0).getTime();
+            const dateB = new Date(b.createdAt || 0).getTime();
+            return dateA - dateB;
+          });
+          
+          // Объединяем клиентов
+          const mergedClient: Client = {
+            ...existingClient,
+            messages: allMessages,
+            // Обновляем whatsappId если у нового клиента он более полный
+            whatsappId: client.whatsappId && (!existingClient.whatsappId || client.whatsappId.length > existingClient.whatsappId.length) 
+              ? client.whatsappId 
+              : existingClient.whatsappId,
+            phone: client.phone && (!existingClient.phone || client.phone.length > existingClient.phone.length)
+              ? client.phone
+              : existingClient.phone,
+            // Обновляем имя если оно более информативное
+            // Приоритет: реальное имя > номер > автоматически сгенерированное имя
+            name: (() => {
+              const existingIsAuto = existingClient.name?.startsWith('WhatsApp ') || existingClient.name?.startsWith('Telegram ') || existingClient.name?.startsWith('Instagram ');
+              const newIsAuto = client.name?.startsWith('WhatsApp ') || client.name?.startsWith('Telegram ') || client.name?.startsWith('Instagram ');
+              
+              if (!newIsAuto && client.name) {
+                // Новое имя не автоматическое - используем его
+                return client.name;
+              } else if (!existingIsAuto && existingClient.name) {
+                // Существующее имя не автоматическое - используем его
+                return existingClient.name;
+              } else if (newIsAuto && existingIsAuto) {
+                // Оба автоматические - выбираем более короткое (обычно более информативное)
+                return client.name.length < existingClient.name.length ? client.name : existingClient.name;
+              } else {
+                // Одно из имен автоматическое - используем не автоматическое
+                return newIsAuto ? existingClient.name : client.name;
+              }
+            })(),
+            // Обновляем updatedAt на более свежую дату
+            updatedAt: new Date(existingClient.updatedAt) > new Date(client.updatedAt) 
+              ? existingClient.updatedAt 
+              : client.updatedAt,
+          };
+          normalizedClients.set(phoneKey, mergedClient);
+        } else if (phoneKey) {
+          // Новый клиент с нормализованным номером
+          normalizedClients.set(phoneKey, client);
+        } else {
+          // Клиент без номера - используем ID как ключ (для групповых чатов и т.д.)
+          normalizedClients.set(clientId, client);
+        }
+      });
+      
+      // Сортируем клиентов по дате последнего сообщения или updatedAt
+      const uniqueClients = Array.from(normalizedClients.values()).sort((a, b) => {
+        const aLastMessage = a.messages && a.messages.length > 0 
+          ? new Date(a.messages[a.messages.length - 1].createdAt || 0).getTime()
+          : new Date(a.updatedAt || 0).getTime();
+        const bLastMessage = b.messages && b.messages.length > 0
+          ? new Date(b.messages[b.messages.length - 1].createdAt || 0).getTime()
+          : new Date(b.updatedAt || 0).getTime();
+        return bLastMessage - aLastMessage;
+      });
+      
+      console.log('Loaded clients:', {
+        total: response.data.length,
+        unique: uniqueClients.length,
+        duplicates: response.data.length - uniqueClients.length,
+        clients: uniqueClients.map((c: Client) => ({
+          id: c.id,
+          name: c.name,
+          phone: c.phone,
+          whatsappId: c.whatsappId,
+          telegramId: c.telegramId,
+          instagramId: c.instagramId,
+          messagesCount: c.messages?.length || 0,
+          hasWhatsAppMessages: c.messages?.some((m: any) => 
+            m?.channel === 'whatsapp' || m?.channel === MessageChannel.WHATSAPP
+          ),
+        })),
+      });
+      
+      setClients(uniqueClients);
     } catch (err: any) {
       setError(getErrorMessage(err));
+      console.error('Error loading clients:', err);
     } finally {
       setLoading(false);
     }
@@ -99,9 +222,31 @@ export const ChatPage: React.FC = () => {
 
   const getClientChannels = (client: Client): MessageChannel[] => {
     const channels: MessageChannel[] = [];
-    if (client.whatsappId) channels.push(MessageChannel.WHATSAPP);
-    if (client.telegramId) channels.push(MessageChannel.TELEGRAM);
-    if (client.instagramId) channels.push(MessageChannel.INSTAGRAM);
+    // Проверяем наличие каналов по ID или по сообщениям
+    // Для WhatsApp: проверяем whatsappId (может быть номер или groupChatId с @g.us), phone, или сообщения
+    const hasWhatsAppMessages = client.messages?.some((msg: any) => 
+      msg?.channel === 'whatsapp' || msg?.channel === MessageChannel.WHATSAPP
+    );
+    // whatsappId может быть номером телефона или groupChatId (например, "120363423109359867@g.us")
+    if (client.whatsappId || client.phone || hasWhatsAppMessages) {
+      channels.push(MessageChannel.WHATSAPP);
+    }
+    if (client.telegramId) {
+      const hasTelegramMessages = client.messages?.some((msg: any) => 
+        msg?.channel === 'telegram' || msg?.channel === MessageChannel.TELEGRAM
+      );
+      if (client.telegramId || hasTelegramMessages) {
+        channels.push(MessageChannel.TELEGRAM);
+      }
+    }
+    if (client.instagramId) {
+      const hasInstagramMessages = client.messages?.some((msg: any) => 
+        msg?.channel === 'instagram' || msg?.channel === MessageChannel.INSTAGRAM
+      );
+      if (client.instagramId || hasInstagramMessages) {
+        channels.push(MessageChannel.INSTAGRAM);
+      }
+    }
     return channels;
   };
 
@@ -109,10 +254,16 @@ export const ChatPage: React.FC = () => {
     // Фильтр по поиску
     if (search) {
       const searchLower = search.toLowerCase();
+      const searchNormalized = search.replace(/[+\s()\-]/g, '').toLowerCase();
       const matchesSearch = 
         client.name.toLowerCase().includes(searchLower) ||
         client.phone?.toLowerCase().includes(searchLower) ||
-        client.email?.toLowerCase().includes(searchLower);
+        client.phone?.replace(/[+\s()\-]/g, '').toLowerCase().includes(searchNormalized) ||
+        client.email?.toLowerCase().includes(searchLower) ||
+        client.whatsappId?.toLowerCase().includes(searchLower) ||
+        client.whatsappId?.replace(/[+\s()\-]/g, '').toLowerCase().includes(searchNormalized) ||
+        client.telegramId?.toLowerCase().includes(searchLower) ||
+        client.instagramId?.toLowerCase().includes(searchLower);
       if (!matchesSearch) return false;
     }
 
@@ -355,14 +506,30 @@ export const ChatPage: React.FC = () => {
                       >
                         <ListItemAvatar>
                           <Avatar sx={{ bgcolor: 'primary.main' }}>
-                            {client.name.charAt(0).toUpperCase()}
+                            {(() => {
+                              // Показываем имя, если оно есть и не является автоматически сгенерированным
+                              const displayName = (() => {
+                                if (client.name && !client.name.startsWith('WhatsApp ') && !client.name.startsWith('Telegram ') && !client.name.startsWith('Instagram ')) {
+                                  return client.name;
+                                }
+                                return client.phone || client.whatsappId || client.telegramId || client.instagramId || client.name || '?';
+                              })();
+                              return displayName.charAt(0).toUpperCase();
+                            })()}
                           </Avatar>
                         </ListItemAvatar>
                         <ListItemText
                           primary={
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                               <Typography variant="subtitle2" fontWeight={isSelected ? 600 : 400} component="div">
-                                {client.name}
+                                {(() => {
+                                  // Показываем имя, если оно есть и не является автоматически сгенерированным
+                                  if (client.name && !client.name.startsWith('WhatsApp ') && !client.name.startsWith('Telegram ') && !client.name.startsWith('Instagram ')) {
+                                    return client.name;
+                                  }
+                                  // Иначе показываем телефон или whatsappId
+                                  return client.phone || client.whatsappId || client.telegramId || client.instagramId || client.name || 'Без имени';
+                                })()}
                               </Typography>
                               {unreadCount > 0 && (
                                 <Chip

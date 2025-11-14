@@ -3,6 +3,8 @@ import {
   Logger,
   BadRequestException,
   NotFoundException,
+  OnModuleInit,
+  OnModuleDestroy,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { HttpService } from '@nestjs/axios';
@@ -41,13 +43,15 @@ interface InstagramWebhook {
 }
 
 @Injectable()
-export class InstagramService {
+export class InstagramService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(InstagramService.name);
   private readonly useMockMode: boolean;
   private readonly apiUrl: string;
   private readonly accessToken: string;
   private readonly pageId: string;
   private readonly useChatrace: boolean;
+  private pollingInterval: NodeJS.Timeout | null = null;
+  private isPolling: boolean = false;
 
   constructor(
     private configService: ConfigService,
@@ -66,6 +70,13 @@ export class InstagramService {
     this.pageId = this.configService.get('INSTAGRAM_PAGE_ID', '');
     this.useMockMode = this.configService.get('INSTAGRAM_USE_MOCK', 'false') === 'true';
     this.useChatrace = this.configService.get('INSTAGRAM_USE_CHATRACE', 'true') === 'true';
+    
+    // Логируем конфигурацию для диагностики
+    this.logger.log(`Instagram Service Config:`);
+    this.logger.log(`  - API URL: ${this.apiUrl}`);
+    this.logger.log(`  - Access Token: ${this.accessToken ? `${this.accessToken.substring(0, 10)}...${this.accessToken.substring(this.accessToken.length - 5)}` : 'NOT SET'}`);
+    this.logger.log(`  - Use Chatrace: ${this.useChatrace}`);
+    this.logger.log(`  - Use Mock Mode: ${this.useMockMode}`);
 
     const mode = this.useMockMode ? 'MOCK MODE' : (this.useChatrace ? 'CHATRACE API' : 'INSTAGRAM GRAPH API');
     this.logger.log(`Instagram Service initialized (${mode})`);
@@ -81,6 +92,174 @@ export class InstagramService {
     } else {
       if (!this.accessToken || !this.pageId) {
         this.logger.warn('Instagram credentials not fully configured. Please check .env file.');
+      }
+    }
+  }
+
+  /**
+   * Запуск polling для получения сообщений через Chatrace API (если поддерживается)
+   */
+  onModuleInit() {
+    if (this.useChatrace && !this.useMockMode && this.accessToken) {
+      this.logger.log('🔧 InstagramService onModuleInit called');
+      this.logger.log('📡 Starting Instagram message polling (Chatrace)...');
+      this.startPolling();
+    } else if (this.useMockMode) {
+      this.logger.log('📝 Instagram in MOCK mode - polling disabled');
+    } else if (!this.accessToken) {
+      this.logger.warn('⚠️ Instagram Access Token not set - polling disabled');
+    }
+  }
+
+  onModuleDestroy() {
+    this.stopPolling();
+  }
+
+  /**
+   * Запуск polling для получения сообщений через Chatrace API
+   */
+  private startPolling() {
+    if (this.pollingInterval) {
+      return; // Уже запущен
+    }
+
+    this.isPolling = true;
+    this.logger.log(`✅ Starting Instagram message polling (checking every 10 seconds)`);
+    this.logger.log(`📡 API URL: ${this.apiUrl}`);
+
+    // Проверяем сообщения каждые 10 секунд
+    this.pollingInterval = setInterval(async () => {
+      if (!this.isPolling) return;
+      await this.checkForNewMessages();
+    }, 10000); // 10 секунд
+
+    // Первая проверка сразу
+    this.checkForNewMessages();
+  }
+
+  /**
+   * Остановка polling
+   */
+  private stopPolling() {
+    if (this.pollingInterval) {
+      clearInterval(this.pollingInterval);
+      this.pollingInterval = null;
+      this.isPolling = false;
+      this.logger.log('🛑 Instagram polling stopped');
+    }
+  }
+
+  /**
+   * Проверка новых сообщений через Chatrace API
+   * Публичный метод для тестирования
+   */
+  async checkForNewMessages(): Promise<void> {
+    if (!this.useChatrace || this.useMockMode || !this.accessToken) {
+      this.logger.debug(`⏭️ Skipping Instagram polling: useChatrace=${this.useChatrace}, useMockMode=${this.useMockMode}, hasToken=${!!this.accessToken}`);
+      return;
+    }
+
+    try {
+      this.logger.log(`🔍 Starting Instagram message check...`);
+      // Пробуем разные возможные endpoints Chatrace для получения сообщений
+      const possibleEndpoints = [
+        `${this.apiUrl}/messages/receive`,
+        `${this.apiUrl}/messages/get`,
+        `${this.apiUrl}/instagram/messages`,
+        `${this.apiUrl}/api/messages`,
+      ];
+
+      for (const url of possibleEndpoints) {
+        try {
+          this.logger.log(`🔍 Checking for new Instagram messages: ${url}`);
+          
+          // Пробуем разные форматы авторизации
+          const authHeaders = [
+            { Authorization: `Bearer ${this.accessToken}` },
+            { 'X-API-Key': this.accessToken },
+            { 'api-key': this.accessToken },
+            { 'token': this.accessToken },
+            { 'access-token': this.accessToken },
+          ];
+
+          let lastError: any = null;
+          for (const authHeader of authHeaders) {
+            try {
+              const response = await firstValueFrom(
+                this.httpService.get(url, {
+                  headers: {
+                    ...authHeader,
+                    'Content-Type': 'application/json',
+                  },
+                  timeout: 10000,
+                }),
+              );
+
+              if (response.data) {
+                this.logger.log(`📦 Received response from Chatrace: ${JSON.stringify(response.data, null, 2)}`);
+                
+                // Обрабатываем ответ
+                if (Array.isArray(response.data)) {
+                  // Массив сообщений
+                  for (const message of response.data) {
+                    await this.processChatraceWebhook(message);
+                  }
+                } else if (response.data.messages && Array.isArray(response.data.messages)) {
+                  // Объект с массивом messages
+                  for (const message of response.data.messages) {
+                    await this.processChatraceWebhook(message);
+                  }
+                } else if (response.data.data && Array.isArray(response.data.data)) {
+                  // Объект с массивом data
+                  for (const message of response.data.data) {
+                    await this.processChatraceWebhook(message);
+                  }
+                } else {
+                  // Одиночное сообщение
+                  await this.processChatraceWebhook(response.data);
+                }
+                
+                // Если получили ответ, прекращаем попытки других endpoints и форматов авторизации
+                return;
+              }
+            } catch (error: any) {
+              lastError = error;
+              // Если это 401, пробуем следующий формат авторизации
+              if (error.response?.status === 401) {
+                this.logger.debug(`   Auth format failed (401), trying next...`);
+                continue;
+              }
+              // Для других ошибок пробрасываем дальше
+              throw error;
+            }
+          }
+          
+          // Если все форматы авторизации не сработали
+          if (lastError) {
+            throw lastError;
+          }
+        } catch (error: any) {
+          // Если endpoint не найден (404), пробуем следующий
+          if (error.response?.status === 404) {
+            this.logger.log(`⚠️ Endpoint ${url} not found (404), trying next...`);
+            continue;
+          }
+          // Для других ошибок логируем, но продолжаем
+          if (error.code !== 'ECONNABORTED') {
+            this.logger.warn(`❌ Error checking ${url}: ${error.message} (status: ${error.response?.status || 'N/A'})`);
+            if (error.response?.data) {
+              this.logger.warn(`   Response data: ${JSON.stringify(error.response.data)}`);
+            }
+          }
+        }
+      }
+
+      // Если ни один endpoint не сработал, это нормально - возможно, Chatrace использует только webhooks
+      this.logger.log(`📭 No new Instagram messages or polling not supported by Chatrace`);
+    } catch (error: any) {
+      // Игнорируем ошибки polling - возможно, Chatrace не поддерживает polling
+      if (error.code !== 'ECONNABORTED') {
+        this.logger.debug(`Error in Instagram polling: ${error.message}`);
       }
     }
   }
@@ -163,29 +342,135 @@ export class InstagramService {
    */
   private async processChatraceWebhook(data: any): Promise<void> {
     try {
-      // Chatrace обычно отправляет данные в формате, похожем на Instagram Graph API
-      // Адаптируем под их формат
-      const senderId = data.sender?.id || data.from?.id || data.userId || data.senderId;
-      const messageId = data.message?.mid || data.messageId || data.id || `chatrace-${Date.now()}`;
-      const text = data.message?.text || data.text || data.message || data.content || '';
-      const username = data.sender?.username || data.from?.username || data.username || `Chatrace User ${senderId}`;
-      const timestamp = data.timestamp || data.time || Date.now();
-
-      if (!senderId || !text) {
-        this.logger.warn('Chatrace webhook data incomplete, skipping');
+      this.logger.log(`🔄 Processing Chatrace webhook: ${JSON.stringify(data, null, 2)}`);
+      
+      // Chatrace может отправлять данные в разных форматах
+      // Проверяем все возможные варианты структуры данных
+      
+      // Вариант 1: Прямые поля в корне объекта
+      let senderId = data.senderId || data.userId || data.fromId || data.from?.id;
+      let messageId = data.messageId || data.id || data.message_id;
+      let text = data.text || data.message || data.content || data.body;
+      let username = data.username || data.senderName || data.fromName || data.name;
+      let timestamp = data.timestamp || data.time || data.created_at || Date.now();
+      
+      // Вариант 2: Вложенная структура (Instagram Graph API формат)
+      if (!senderId) {
+        senderId = data.sender?.id || data.from?.id || data.user?.id;
+      }
+      if (!messageId) {
+        messageId = data.message?.mid || data.message?.id || data.message_id;
+      }
+      if (!text) {
+        text = data.message?.text || data.message?.content || data.message?.body;
+      }
+      if (!username) {
+        username = data.sender?.username || data.from?.username || data.user?.username || 
+                   data.sender?.name || data.from?.name || data.user?.name;
+      }
+      if (!timestamp || timestamp === Date.now()) {
+        timestamp = data.message?.timestamp || data.timestamp || data.created_at || Date.now();
+      }
+      
+      // Вариант 3: Массив сообщений (если Chatrace отправляет массив)
+      if (Array.isArray(data)) {
+        this.logger.log(`📦 Chatrace webhook is an array with ${data.length} items`);
+        for (const item of data) {
+          await this.processChatraceWebhook(item);
+        }
+        return;
+      }
+      
+      // Вариант 4: Вложенная структура с entry (Instagram Graph API формат)
+      if (data.entry && Array.isArray(data.entry)) {
+        this.logger.log(`📦 Chatrace webhook has entry array with ${data.entry.length} items`);
+        for (const entry of data.entry) {
+          if (entry.messaging && Array.isArray(entry.messaging)) {
+            for (const messaging of entry.messaging) {
+              const entrySenderId = messaging.sender?.id || messaging.from?.id;
+              const entryMessageId = messaging.message?.mid || messaging.message?.id;
+              const entryText = messaging.message?.text || messaging.message?.content;
+              const entryTimestamp = messaging.timestamp || entry.time;
+              
+              if (entrySenderId && entryText) {
+                await this.processSingleChatraceMessage({
+                  senderId: entrySenderId,
+                  messageId: entryMessageId,
+                  text: entryText,
+                  username: messaging.sender?.username || messaging.from?.username,
+                  timestamp: entryTimestamp,
+                });
+              }
+            }
+          }
+        }
         return;
       }
 
+      // Логируем извлеченные данные
+      this.logger.log(`📝 Extracted data from Chatrace webhook:`);
+      this.logger.log(`  - senderId: ${senderId || 'MISSING'}`);
+      this.logger.log(`  - messageId: ${messageId || 'MISSING'}`);
+      this.logger.log(`  - text: ${text ? text.substring(0, 100) : 'MISSING'}`);
+      this.logger.log(`  - username: ${username || 'MISSING'}`);
+      this.logger.log(`  - timestamp: ${timestamp}`);
+
+      if (!senderId) {
+        this.logger.warn('⚠️ Chatrace webhook: senderId is missing! Full data structure:');
+        this.logger.warn(JSON.stringify(data, null, 2));
+        return;
+      }
+      
+      if (!text || text.trim() === '') {
+        this.logger.warn('⚠️ Chatrace webhook: text is missing or empty! Full data structure:');
+        this.logger.warn(JSON.stringify(data, null, 2));
+        // Не возвращаемся - возможно, это медиа-сообщение, обработаем его
+        text = '[Медиа сообщение]';
+      }
+      
+      await this.processSingleChatraceMessage({
+        senderId,
+        messageId,
+        text,
+        username,
+        timestamp,
+      });
+    } catch (error) {
+      this.logger.error('Error processing Chatrace webhook:', error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Обработка одного сообщения от Chatrace
+   */
+  private async processSingleChatraceMessage({
+    senderId,
+    messageId,
+    text,
+    username,
+    timestamp,
+  }: {
+    senderId: string;
+    messageId?: string;
+    text: string;
+    username?: string;
+    timestamp: number;
+  }): Promise<void> {
+    try {
+      const finalMessageId = messageId || `chatrace-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+      const finalUsername = username || `Chatrace User ${senderId}`;
+      
       // Находим или создаем клиента
-      const client = await this.findOrCreateClient(senderId, username);
+      const client = await this.findOrCreateClient(senderId, finalUsername);
 
       // Проверяем дубликаты
       const existingMessage = await this.messagesRepository.findOne({
-        where: { externalId: `instagram-${messageId}` },
+        where: { externalId: `instagram-${finalMessageId}` },
       });
 
       if (existingMessage) {
-        this.logger.warn(`Message instagram-${messageId} already exists, skipping`);
+        this.logger.warn(`Message instagram-${finalMessageId} already exists, skipping`);
         return;
       }
 
@@ -197,19 +482,19 @@ export class InstagramService {
         channel: MessageChannel.INSTAGRAM,
         direction: MessageDirection.INBOUND,
         content: text,
-        externalId: `instagram-${messageId}`,
+        externalId: `instagram-${finalMessageId}`,
         clientId: client.id,
         ticketId: ticket.id,
         isRead: false,
         isDelivered: true,
-        deliveredAt: new Date(timestamp),
+        deliveredAt: new Date(typeof timestamp === 'number' ? timestamp * 1000 : timestamp),
       });
 
       await this.messagesRepository.save(savedMessage);
 
-      this.logger.log(`Chatrace Instagram message processed: ${messageId} from ${username}`);
+      this.logger.log(`✅ Chatrace Instagram message processed: ${finalMessageId} from ${finalUsername} (${senderId})`);
     } catch (error) {
-      this.logger.error('Error processing Chatrace webhook:', error);
+      this.logger.error('Error processing single Chatrace message:', error);
       throw error;
     }
   }
@@ -549,6 +834,81 @@ export class InstagramService {
       useMockMode: this.useMockMode,
       useChatrace: this.useChatrace,
       isConfigured: this.useMockMode || this.useChatrace || !!(this.accessToken && this.pageId),
+    };
+  }
+
+  /**
+   * Получить статистику Instagram сообщений (для диагностики)
+   */
+  async getStats(): Promise<{
+    totalMessages: number;
+    inboundMessages: number;
+    outboundMessages: number;
+    clientsWithInstagram: number;
+    lastMessage?: {
+      id: string;
+      content: string;
+      direction: string;
+      createdAt: Date;
+    };
+    pollingActive: boolean;
+    config: {
+      useChatrace: boolean;
+      useMockMode: boolean;
+      hasAccessToken: boolean;
+      apiUrl: string;
+    };
+  }> {
+    const totalMessages = await this.messagesRepository.count({
+      where: { channel: MessageChannel.INSTAGRAM },
+    });
+
+    const inboundMessages = await this.messagesRepository.count({
+      where: {
+        channel: MessageChannel.INSTAGRAM,
+        direction: MessageDirection.INBOUND,
+      },
+    });
+
+    const outboundMessages = await this.messagesRepository.count({
+      where: {
+        channel: MessageChannel.INSTAGRAM,
+        direction: MessageDirection.OUTBOUND,
+      },
+    });
+
+    const clientsWithInstagram = await this.clientsRepository
+      .createQueryBuilder('client')
+      .leftJoin('client.messages', 'message')
+      .where('message.channel = :channel', { channel: MessageChannel.INSTAGRAM })
+      .orWhere('client.instagramId IS NOT NULL')
+      .getCount();
+
+    const lastMessage = await this.messagesRepository.findOne({
+      where: { channel: MessageChannel.INSTAGRAM },
+      order: { createdAt: 'DESC' },
+    });
+
+    return {
+      totalMessages,
+      inboundMessages,
+      outboundMessages,
+      clientsWithInstagram,
+      lastMessage: lastMessage
+        ? {
+            id: lastMessage.id,
+            content: lastMessage.content,
+            direction: lastMessage.direction,
+            createdAt: lastMessage.createdAt,
+          }
+        : undefined,
+      pollingActive: this.isPolling,
+      config: {
+        useChatrace: this.useChatrace,
+        useMockMode: this.useMockMode,
+        hasAccessToken: !!this.accessToken,
+        apiUrl: this.apiUrl,
+      },
     };
   }
 }
