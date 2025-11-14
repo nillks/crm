@@ -1,6 +1,14 @@
 # Render Blueprint для автоматического деплоя
-# ВАЖНО: PostgreSQL базу данных нужно создать вручную (см. инструкцию ниже)
+# Согласно официальной документации: https://render.com/docs/blueprint-spec
 
+# PostgreSQL база данных
+databases:
+  - name: crm-database
+    databaseName: crm_db
+    user: crm_user
+    plan: free
+
+# Сервисы
 services:
   # Backend API
   - type: web
@@ -15,7 +23,9 @@ services:
       - key: PORT
         value: 3000
       - key: DATABASE_URL
-        sync: false  # Нужно будет добавить после создания PostgreSQL вручную
+        fromDatabase:
+          name: crm-database
+          property: connectionString
       - key: JWT_SECRET
         generateValue: true
       - key: JWT_EXPIRES_IN
@@ -37,9 +47,10 @@ services:
       - key: INSTAGRAM_USE_MOCK
         value: "false"
 
-  # Frontend
-  - type: static
+  # Frontend (статический сайт)
+  - type: web
     name: crm-frontend
+    runtime: static
     plan: free
     buildCommand: cd frontend && npm install && npm run build
     staticPublishPath: frontend/dist

@@ -2,26 +2,14 @@
 
 ## ⚡ САМЫЙ БЫСТРЫЙ СПОСОБ (10 минут)
 
-### ⚠️ ВАЖНО: PostgreSQL нужно создать вручную!
-
-Render не поддерживает создание PostgreSQL через Blueprint. Создайте базу данных сначала.
-
-### Шаг 1: Создайте PostgreSQL (СНАЧАЛА!)
+### Шаг 1: Автоматический деплой
 1. Зайдите на **https://render.com**
 2. Зарегистрируйтесь через **GitHub** (рекомендуется)
-3. В Dashboard нажмите **"New +"** → **"PostgreSQL"**
-4. Настройки:
-   - **Name:** `crm-database`
-   - **Database:** `crm_db`
-   - **User:** `crm_user`
-   - **Plan:** **Free**
-5. Нажмите **"Create Database"**
-6. **Скопируйте Internal Database URL** (он понадобится позже)
-
-### Шаг 2: Автоматический деплой
-1. В Dashboard нажмите **"New +"** → **"Blueprint"**
-2. Выберите ваш репозиторий
-3. Render автоматически обнаружит файл `render.yaml` и создаст:
+3. В Dashboard нажмите **"New +"** → **"Blueprint"**
+4. Подключите ваш GitHub репозиторий
+5. Выберите ветку `main`
+6. Render автоматически обнаружит файл `render.yaml` и создаст:
+   - ✅ PostgreSQL база данных
    - ✅ Backend API
    - ✅ Frontend
 
@@ -33,8 +21,8 @@ Render не поддерживает создание PostgreSQL через Blue
 2. **Обновите переменные окружения:**
 
    **В Backend сервисе:**
-   - `DATABASE_URL` = Internal Database URL из шага 1
    - `CORS_ORIGIN` = `https://crm-frontend-xxxx.onrender.com`
+   (DATABASE_URL настроится автоматически через Blueprint)
    
    **В Frontend сервисе:**
    - `VITE_API_URL` = `https://crm-backend-xxxx.onrender.com/api`
