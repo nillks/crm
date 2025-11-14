@@ -45,6 +45,10 @@ services:
         value: "true"
       - key: INSTAGRAM_USE_MOCK
         value: "false"
+      - key: DB_SYNCHRONIZE
+        value: "true"
+      - key: DB_RUN_MIGRATIONS
+        value: "false"
 
   # Frontend (статический сайт)
   - type: web

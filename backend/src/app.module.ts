@@ -40,10 +40,10 @@ import { TestPermissionsController } from './roles/test-permissions.controller';
             password: url.password,
             database: url.pathname.slice(1), // Убираем первый слэш
             entities: AllEntities,
-            synchronize: configService.get('NODE_ENV') !== 'production',
+            synchronize: configService.get('DB_SYNCHRONIZE') === 'true' || configService.get('NODE_ENV') !== 'production',
             logging: configService.get('NODE_ENV') === 'development',
             migrations: ['dist/migrations/*.js'],
-            migrationsRun: false,
+            migrationsRun: configService.get('DB_RUN_MIGRATIONS') === 'true',
             autoLoadEntities: true,
             ssl: url.hostname !== 'localhost' && url.hostname !== '127.0.0.1' ? { rejectUnauthorized: false } : false,
           };
@@ -57,10 +57,10 @@ import { TestPermissionsController } from './roles/test-permissions.controller';
           password: configService.get('DB_PASSWORD', 'postgres'),
           database: configService.get('DB_DATABASE', 'crm_db'),
           entities: AllEntities,
-          synchronize: configService.get('NODE_ENV') !== 'production',
+          synchronize: configService.get('DB_SYNCHRONIZE') === 'true' || configService.get('NODE_ENV') !== 'production',
           logging: configService.get('NODE_ENV') === 'development',
           migrations: ['dist/migrations/*.js'],
-          migrationsRun: false,
+          migrationsRun: configService.get('DB_RUN_MIGRATIONS') === 'true',
           autoLoadEntities: true,
         };
       },
