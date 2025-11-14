@@ -3,11 +3,11 @@
 
 services:
   # PostgreSQL Database
-  - type: pg
+  - type: postgres
     name: crm-database
-    databaseName: crm_db
-    user: crm_user
     plan: free
+    databaseName: crm_db
+    databaseUser: crm_user
 
   # Backend API
   - type: web
@@ -22,7 +22,8 @@ services:
       - key: PORT
         value: 3000
       - key: DATABASE_URL
-        fromDatabase:
+        fromService:
+          type: postgres
           name: crm-database
           property: connectionString
       - key: JWT_SECRET
@@ -55,4 +56,3 @@ services:
     envVars:
       - key: VITE_API_URL
         sync: false  # Нужно будет обновить после деплоя backend
-
