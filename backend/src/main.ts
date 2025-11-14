@@ -15,12 +15,31 @@ async function bootstrap() {
     ...corsOrigins,
     'https://crm-frontend-8qrl.onrender.com',
     'https://crm-frontend-zpwa.onrender.com',
+    'http://localhost:5173', // Для локальной разработки
   ].filter((origin, index, self) => self.indexOf(origin) === index); // Убираем дубликаты
   
-  app.enableCors({
-    origin: allowedOrigins.length === 1 ? allowedOrigins[0] : allowedOrigins,
+  // Функция для проверки origin'а
+  const corsOptions = {
+    origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+      // Разрешаем запросы без origin (например, Postman, curl)
+      if (!origin) {
+        return callback(null, true);
+      }
+      
+      // Проверяем, есть ли origin в списке разрешенных
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        // Логируем для отладки
+        console.log(`⚠️ CORS: Blocked origin: ${origin}`);
+        console.log(`🌐 Allowed origins: ${allowedOrigins.join(', ')}`);
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     credentials: true,
-  });
+  };
+  
+  app.enableCors(corsOptions);
   
   console.log(`🌐 CORS configured for origins: ${allowedOrigins.join(', ')}`);
 
