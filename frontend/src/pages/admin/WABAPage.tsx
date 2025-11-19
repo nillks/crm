@@ -74,6 +74,8 @@ function TabPanel(props: TabPanelProps) {
   );
 }
 
+const toArray = <T,>(value: T[] | null | undefined): T[] => (Array.isArray(value) ? value : []);
+
 export const WABAPage: React.FC = () => {
   const [tabValue, setTabValue] = useState(0);
   const [templates, setTemplates] = useState<WABATemplate[]>([]);
@@ -136,31 +138,57 @@ export const WABAPage: React.FC = () => {
   };
 
   const loadTemplates = async () => {
-    const templates = await wabaService.findAllTemplates();
-    setTemplates(templates);
+    try {
+      const templates = await wabaService.findAllTemplates();
+      setTemplates(toArray(templates));
+    } catch (err) {
+      console.error('Failed to load WABA templates:', err);
+      setTemplates([]);
+      throw err;
+    }
   };
 
   const loadCampaigns = async () => {
-    const campaigns = await wabaService.findAllCampaigns();
-    setCampaigns(campaigns);
+    try {
+      const campaigns = await wabaService.findAllCampaigns();
+      setCampaigns(toArray(campaigns));
+    } catch (err) {
+      console.error('Failed to load WABA campaigns:', err);
+      setCampaigns([]);
+      throw err;
+    }
   };
 
   const loadCredentials = async () => {
-    const creds = await wabaService.getCredentials();
-    setCredentials(creds);
+    try {
+      const creds = await wabaService.getCredentials();
+      setCredentials(creds);
+    } catch (err) {
+      console.error('Failed to load WABA credentials:', err);
+      setCredentials(null);
+      throw err;
+    }
   };
 
   const loadAITokenStats = async () => {
-    const stats = await wabaService.getAITokenStats();
-    setAiTokenStats(stats);
+    try {
+      const stats = await wabaService.getAITokenStats();
+      setAiTokenStats(stats);
+    } catch (err) {
+      console.error('Failed to load AI token stats:', err);
+      setAiTokenStats(null);
+      throw err;
+    }
   };
 
   const loadClients = async () => {
     try {
       const response = await clientsService.findAll({ limit: 100 });
-      setClients(response.clients);
+      setClients(toArray(response?.clients));
     } catch (err) {
       console.error('Failed to load clients:', err);
+      setClients([]);
+      throw err;
     }
   };
 
