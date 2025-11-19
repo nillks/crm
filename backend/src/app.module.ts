@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import * as path from 'path';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -14,6 +15,7 @@ import { TicketsModule } from './tickets/tickets.module';
 import { WhatsAppModule } from './whatsapp/whatsapp.module';
 import { TelegramModule } from './telegram/telegram.module';
 import { InstagramModule } from './instagram/instagram.module';
+import { AIModule } from './ai/ai.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { AllEntities } from './entities';
 import { TestPermissionsController } from './roles/test-permissions.controller';
@@ -22,7 +24,11 @@ import { TestPermissionsController } from './roles/test-permissions.controller';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: '.env',
+      envFilePath: [
+        '.env',
+        path.resolve(process.cwd(), '.env'),
+        path.resolve(__dirname, '../.env'),
+      ],
     }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
@@ -74,6 +80,7 @@ import { TestPermissionsController } from './roles/test-permissions.controller';
     WhatsAppModule,
     TelegramModule,
     InstagramModule,
+    AIModule,
   ],
   controllers: [AppController, HealthController, TestPermissionsController],
   providers: [

@@ -12,6 +12,7 @@ export * from './transfer-history.entity';
 export * from './quick-reply.entity';
 export * from './media-file.entity';
 export * from './ai-setting.entity';
+export * from './ai-log.entity';
 
 // Export entity classes only (for TypeORM)
 import { Role } from './role.entity';
@@ -27,6 +28,7 @@ import { TransferHistory } from './transfer-history.entity';
 import { QuickReply } from './quick-reply.entity';
 import { MediaFile } from './media-file.entity';
 import { AiSetting } from './ai-setting.entity';
+import { AiLog } from './ai-log.entity';
 
 export const AllEntities = [
   Role,
@@ -42,4 +44,5 @@ export const AllEntities = [
   QuickReply,
   MediaFile,
   AiSetting,
+  AiLog,
 ];

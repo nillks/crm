@@ -3,7 +3,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
 export class InitialSchema1762394856890 implements MigrationInterface {
   name = 'InitialSchema1762394856890';
 
-  public async up(queryRunner: QueryRunner): Promise<void> {
+    public async up(queryRunner: QueryRunner): Promise<void> {
     // Create roles table
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "roles" (
@@ -287,9 +287,9 @@ export class InitialSchema1762394856890 implements MigrationInterface {
     `);
     await queryRunner.query(`CREATE INDEX IF NOT EXISTS "IDX_ai_settings_clientId" ON "ai_settings" ("clientId")`);
     await queryRunner.query(`CREATE INDEX IF NOT EXISTS "IDX_ai_settings_isEnabled" ON "ai_settings" ("isEnabled")`);
-  }
+    }
 
-  public async down(queryRunner: QueryRunner): Promise<void> {
+    public async down(queryRunner: QueryRunner): Promise<void> {
     // Drop tables in reverse order
     await queryRunner.query(`DROP INDEX "IDX_ai_settings_isEnabled"`);
     await queryRunner.query(`DROP INDEX "IDX_ai_settings_clientId"`);
