@@ -347,5 +347,87 @@ export class AIService {
       total,
     };
   }
+
+  /**
+   * Получить настройки AI для клиента
+   */
+  async getSetting(clientId: string): Promise<AiSetting | null> {
+    return this.aiSettingRepository.findOne({
+      where: { clientId },
+    });
+  }
+
+  /**
+   * Создать или обновить настройки AI для клиента
+   */
+  async upsertSetting(clientId: string, dto: {
+    isEnabled?: boolean;
+    provider?: AiProvider;
+    model?: string;
+    systemPrompt?: string;
+    temperature?: number;
+    maxTokens?: number;
+  }): Promise<AiSetting> {
+    let setting = await this.aiSettingRepository.findOne({
+      where: { clientId },
+    });
+
+    if (!setting) {
+      setting = this.aiSettingRepository.create({
+        clientId,
+        isEnabled: dto.isEnabled ?? false,
+        provider: dto.provider ?? AiProvider.OPENAI,
+        model: dto.model || this.DEFAULT_MODEL,
+        systemPrompt: dto.systemPrompt,
+        temperature: dto.temperature ?? 0.7,
+        maxTokens: dto.maxTokens ?? 1000,
+      });
+    } else {
+      if (dto.isEnabled !== undefined) {
+        setting.isEnabled = dto.isEnabled;
+      }
+      if (dto.provider !== undefined) {
+        setting.provider = dto.provider;
+      }
+      if (dto.model !== undefined) {
+        setting.model = dto.model;
+      }
+      if (dto.systemPrompt !== undefined) {
+        setting.systemPrompt = dto.systemPrompt;
+      }
+      if (dto.temperature !== undefined) {
+        setting.temperature = dto.temperature;
+      }
+      if (dto.maxTokens !== undefined) {
+        setting.maxTokens = dto.maxTokens;
+      }
+    }
+
+    return this.aiSettingRepository.save(setting);
+  }
+
+  /**
+   * Переключить включение/выключение AI для клиента
+   */
+  async toggleSetting(clientId: string): Promise<AiSetting> {
+    let setting = await this.aiSettingRepository.findOne({
+      where: { clientId },
+    });
+
+    if (!setting) {
+      setting = this.aiSettingRepository.create({
+        clientId,
+        isEnabled: true,
+        provider: AiProvider.OPENAI,
+        model: this.DEFAULT_MODEL,
+        temperature: 0.7,
+        maxTokens: 1000,
+      });
+    } else {
+      setting.isEnabled = !setting.isEnabled;
+    }
+
+    return this.aiSettingRepository.save(setting);
+  }
 }
 

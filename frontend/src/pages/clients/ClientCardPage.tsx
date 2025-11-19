@@ -37,9 +37,12 @@ import {
   History,
   AttachFile,
   Task,
+  SmartToy,
 } from '@mui/icons-material';
 import { clientsService } from '../../services/clients.service';
 import type { Client } from '../../services/clients.service';
+import { aiService } from '../../services/ai.service';
+import type { AiLog, AiSetting } from '../../services/ai.service';
 import { getErrorMessage } from '../../utils/errorMessages';
 
 interface TabPanelProps {
@@ -78,6 +81,9 @@ export const ClientCardPage: React.FC = () => {
   const [formData, setFormData] = useState<Partial<Client>>({});
   const [saving, setSaving] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [aiLogs, setAiLogs] = useState<AiLog[]>([]);
+  const [aiLogsLoading, setAiLogsLoading] = useState(false);
+  const [aiSetting, setAiSetting] = useState<AiSetting | null>(null);
 
   useEffect(() => {
     if (id && id !== 'new') {
@@ -117,12 +123,41 @@ export const ClientCardPage: React.FC = () => {
         notes: data.notes || '',
         status: data.status,
       });
+      
+      // Загружаем настройки AI и логи, если переключились на вкладку AI
+      if (tabValue === 5) {
+        await loadAIData();
+      }
     } catch (err: any) {
       setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
   };
+
+  const loadAIData = async () => {
+    if (!id) return;
+
+    try {
+      setAiLogsLoading(true);
+      const [logsResponse, setting] = await Promise.all([
+        aiService.getLogs({ clientId: id, limit: 50 }),
+        aiService.getSetting(id),
+      ]);
+      setAiLogs(logsResponse.logs);
+      setAiSetting(setting);
+    } catch (err: any) {
+      console.error('Ошибка загрузки данных AI:', err);
+    } finally {
+      setAiLogsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (tabValue === 5 && id && id !== 'new') {
+      loadAIData();
+    }
+  }, [tabValue, id]);
 
   const handleSave = async () => {
     if (!id) return;
@@ -422,6 +457,7 @@ export const ClientCardPage: React.FC = () => {
                 <Tab icon={<History />} iconPosition="start" label="История" />
                 <Tab icon={<AttachFile />} iconPosition="start" label="Файлы" />
                 <Tab icon={<Task />} iconPosition="start" label="Задачи" />
+                <Tab icon={<SmartToy />} iconPosition="start" label="AI История" />
               </Tabs>
             </Box>
 
@@ -585,6 +621,146 @@ export const ClientCardPage: React.FC = () => {
               <Typography variant="body1" color="text.secondary" align="center" sx={{ py: 4 }}>
                 Задачи будут доступны в следующей версии
               </Typography>
+            </TabPanel>
+
+            <TabPanel value={tabValue} index={5}>
+              {aiLogsLoading ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                  <CircularProgress />
+                </Box>
+              ) : (
+                <>
+                  {/* AI Settings Info */}
+                  {aiSetting && (
+                    <Box sx={{ mb: 3, p: 2, bgcolor: 'grey.50', borderRadius: 2 }}>
+                      <Typography variant="h6" gutterBottom>
+                        Настройки AI для клиента
+                      </Typography>
+                      <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                        <Chip
+                          label={aiSetting.isEnabled ? 'AI включен' : 'AI выключен'}
+                          color={aiSetting.isEnabled ? 'success' : 'default'}
+                          size="small"
+                        />
+                        <Chip
+                          label={`Провайдер: ${aiSetting.provider === 'openai' ? 'ChatGPT' : 'Yandex GPT'}`}
+                          size="small"
+                          variant="outlined"
+                        />
+                        <Chip
+                          label={`Модель: ${aiSetting.model}`}
+                          size="small"
+                          variant="outlined"
+                        />
+                        <Chip
+                          label={`Использовано токенов: ${aiSetting.tokensUsed?.toLocaleString() || 0}`}
+                          size="small"
+                          color="primary"
+                          variant="outlined"
+                        />
+                      </Box>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={() => navigate('/settings/ai')}
+                        sx={{ mt: 2 }}
+                      >
+                        Настроить AI
+                      </Button>
+                    </Box>
+                  )}
+
+                  {/* AI Logs */}
+                  <Typography variant="h6" gutterBottom>
+                    История запросов AI
+                  </Typography>
+                  {aiLogs.length > 0 ? (
+                    <TableContainer component={Paper} variant="outlined">
+                      <Table>
+                        <TableHead>
+                          <TableRow>
+                            <TableCell>Дата</TableCell>
+                            <TableCell>Провайдер</TableCell>
+                            <TableCell>Модель</TableCell>
+                            <TableCell>Запрос</TableCell>
+                            <TableCell>Ответ</TableCell>
+                            <TableCell>Токены</TableCell>
+                            <TableCell>Статус</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {aiLogs.map((log) => (
+                            <TableRow key={log.id}>
+                              <TableCell>
+                                {new Date(log.createdAt).toLocaleString('ru-RU')}
+                              </TableCell>
+                              <TableCell>
+                                <Chip
+                                  label={log.provider === 'openai' ? 'ChatGPT' : 'Yandex GPT'}
+                                  size="small"
+                                  color="primary"
+                                  variant="outlined"
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
+                                  {log.model}
+                                </Typography>
+                              </TableCell>
+                              <TableCell>
+                                <Typography
+                                  variant="body2"
+                                  sx={{
+                                    maxWidth: 200,
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
+                                  }}
+                                  title={log.request}
+                                >
+                                  {log.request}
+                                </Typography>
+                              </TableCell>
+                              <TableCell>
+                                <Typography
+                                  variant="body2"
+                                  sx={{
+                                    maxWidth: 200,
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
+                                  }}
+                                  title={log.response}
+                                >
+                                  {log.response}
+                                </Typography>
+                              </TableCell>
+                              <TableCell>
+                                <Chip
+                                  label={log.tokensUsed}
+                                  size="small"
+                                  variant="outlined"
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Chip
+                                  label={log.success ? 'Успешно' : 'Ошибка'}
+                                  size="small"
+                                  color={log.success ? 'success' : 'error'}
+                                />
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  ) : (
+                    <Typography variant="body1" color="text.secondary" align="center" sx={{ py: 4 }}>
+                      История запросов AI пуста
+                    </Typography>
+                  )}
+                </>
+              )}
             </TabPanel>
           </Card>
         )}

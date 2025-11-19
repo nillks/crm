@@ -2,14 +2,16 @@ import {
   Controller,
   Post,
   Get,
+  Put,
   Body,
   Query,
+  Param,
   UseGuards,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
 import { AIService } from './ai.service';
-import { GenerateAiResponseDto } from './dto';
+import { GenerateAiResponseDto, UpdateAiSettingDto } from './dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { GetUser } from '../auth/decorators/get-user.decorator';
 import { User } from '../entities/user.entity';
@@ -86,6 +88,44 @@ export class AIController {
       startDate: startDate ? new Date(startDate) : undefined,
       endDate: endDate ? new Date(endDate) : undefined,
     });
+  }
+
+  /**
+   * Получить настройки AI для клиента
+   */
+  @Get('settings/:clientId')
+  @HttpCode(HttpStatus.OK)
+  async getSetting(@Param('clientId') clientId: string) {
+    const setting = await this.aiService.getSetting(clientId);
+    return setting || null;
+  }
+
+  /**
+   * Создать или обновить настройки AI для клиента
+   */
+  @Put('settings/:clientId')
+  @HttpCode(HttpStatus.OK)
+  async updateSetting(
+    @Param('clientId') clientId: string,
+    @Body() dto: UpdateAiSettingDto,
+  ) {
+    return this.aiService.upsertSetting(clientId, {
+      isEnabled: dto.isEnabled,
+      provider: dto.provider,
+      model: dto.model,
+      systemPrompt: dto.systemPrompt,
+      temperature: dto.temperature,
+      maxTokens: dto.maxTokens,
+    });
+  }
+
+  /**
+   * Переключить включение/выключение AI для клиента
+   */
+  @Post('settings/:clientId/toggle')
+  @HttpCode(HttpStatus.OK)
+  async toggleSetting(@Param('clientId') clientId: string) {
+    return this.aiService.toggleSetting(clientId);
   }
 }
 
