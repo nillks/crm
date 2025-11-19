@@ -13,6 +13,9 @@ export * from './quick-reply.entity';
 export * from './media-file.entity';
 export * from './ai-setting.entity';
 export * from './ai-log.entity';
+export * from './waba-template.entity';
+export * from './waba-campaign.entity';
+export * from './waba-credentials.entity';
 
 // Export entity classes only (for TypeORM)
 import { Role } from './role.entity';
@@ -29,6 +32,9 @@ import { QuickReply } from './quick-reply.entity';
 import { MediaFile } from './media-file.entity';
 import { AiSetting } from './ai-setting.entity';
 import { AiLog } from './ai-log.entity';
+import { WABATemplate } from './waba-template.entity';
+import { WABACampaign } from './waba-campaign.entity';
+import { WABACredentials } from './waba-credentials.entity';
 
 export const AllEntities = [
   Role,
@@ -45,4 +51,7 @@ export const AllEntities = [
   MediaFile,
   AiSetting,
   AiLog,
+  WABATemplate,
+  WABACampaign,
+  WABACredentials,
 ];

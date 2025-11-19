@@ -20,6 +20,8 @@ import { AnalyticsModule } from './analytics/analytics.module';
 import { MediaModule } from './media/media.module';
 import { TasksModule } from './tasks/tasks.module';
 import { QuickRepliesModule } from './quick-replies/quick-replies.module';
+import { WABAModule } from './waba/waba.module';
+import { ReportsModule } from './reports/reports.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { AllEntities } from './entities';
 import { TestPermissionsController } from './roles/test-permissions.controller';
@@ -89,6 +91,8 @@ import { TestPermissionsController } from './roles/test-permissions.controller';
     MediaModule,
     TasksModule,
     QuickRepliesModule,
+    WABAModule,
+    ReportsModule,
   ],
   controllers: [AppController, HealthController, TestPermissionsController],
   providers: [

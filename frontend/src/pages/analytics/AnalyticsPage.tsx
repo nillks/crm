@@ -20,6 +20,15 @@ import {
   TableRow,
   Chip,
   IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  LinearProgress,
 } from '@mui/material';
 import {
   ArrowBack,
@@ -48,6 +57,7 @@ import {
 } from 'recharts';
 import { analyticsService, SLAMetrics, KPIMetrics, ChannelAnalytics } from '../../services/analytics.service';
 import { ticketsService } from '../../services/tickets.service';
+import { reportsService, ReportType, ReportFormat } from '../../services/reports.service';
 import { getErrorMessage } from '../../utils/errorMessages';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
@@ -60,6 +70,11 @@ export const AnalyticsPage: React.FC = () => {
   const [kpiMetrics, setKpiMetrics] = useState<KPIMetrics | null>(null);
   const [channelAnalytics, setChannelAnalytics] = useState<ChannelAnalytics | null>(null);
   const [closedTickets, setClosedTickets] = useState<any[]>([]);
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [exportLoading, setExportLoading] = useState(false);
+  const [exportStatus, setExportStatus] = useState<string | null>(null);
+  const [selectedReportType, setSelectedReportType] = useState<ReportType>(ReportType.TICKETS);
+  const [selectedFormat, setSelectedFormat] = useState<ReportFormat>(ReportFormat.EXCEL);
 
   // Фильтры по датам
   const [startDate, setStartDate] = useState<string>(() => {
@@ -110,24 +125,42 @@ export const AnalyticsPage: React.FC = () => {
   };
 
   const handleExport = () => {
-    const data = {
-      sla: slaMetrics,
-      kpi: kpiMetrics,
-      channels: channelAnalytics,
-      closedTickets,
-      period: { startDate, endDate },
-      exportedAt: new Date().toISOString(),
-    };
+    setExportDialogOpen(true);
+  };
 
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `analytics-report-${startDate}-${endDate}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+  const handleGenerateReport = async () => {
+    try {
+      setExportLoading(true);
+      setExportStatus('Генерация отчёта...');
+
+      const result = await reportsService.generateReport({
+        type: selectedReportType,
+        format: selectedFormat,
+        startDate,
+        endDate,
+      });
+
+      setExportStatus('Отчёт готов! Скачивание...');
+
+      // Скачиваем файл
+      const blob = await reportsService.downloadReport(result.fileName);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = result.fileName;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      setExportStatus('Отчёт успешно скачан!');
+      setTimeout(() => {
+        setExportDialogOpen(false);
+        setExportStatus(null);
+      }, 2000);
+    } catch (err: any) {
+      setExportStatus(`Ошибка: ${getErrorMessage(err)}`);
+    } finally {
+      setExportLoading(false);
+    }
   };
 
   // Данные для графика звонков (примерные данные, так как нет отдельного endpoint)
@@ -489,6 +522,72 @@ export const AnalyticsPage: React.FC = () => {
           </TableContainer>
         </Paper>
       </Container>
+
+      {/* Диалог экспорта отчёта */}
+      <Dialog open={exportDialogOpen} onClose={() => !exportLoading && setExportDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Экспорт отчёта</DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, pt: 1 }}>
+            <FormControl fullWidth>
+              <InputLabel>Тип отчёта</InputLabel>
+              <Select
+                value={selectedReportType}
+                onChange={(e) => setSelectedReportType(e.target.value as ReportType)}
+                label="Тип отчёта"
+                disabled={exportLoading}
+              >
+                <MenuItem value={ReportType.TICKETS}>Тикеты</MenuItem>
+                <MenuItem value={ReportType.CALLS}>Звонки</MenuItem>
+                <MenuItem value={ReportType.OPERATORS}>Операторы</MenuItem>
+                <MenuItem value={ReportType.CLIENTS}>Клиенты</MenuItem>
+              </Select>
+            </FormControl>
+
+            <FormControl fullWidth>
+              <InputLabel>Формат</InputLabel>
+              <Select
+                value={selectedFormat}
+                onChange={(e) => setSelectedFormat(e.target.value as ReportFormat)}
+                label="Формат"
+                disabled={exportLoading}
+              >
+                <MenuItem value={ReportFormat.EXCEL}>Excel (.xlsx)</MenuItem>
+                <MenuItem value={ReportFormat.PDF} disabled>
+                  PDF (скоро)
+                </MenuItem>
+              </Select>
+            </FormControl>
+
+            <Box>
+              <Typography variant="body2" color="text.secondary" gutterBottom>
+                Период: {startDate} - {endDate}
+              </Typography>
+            </Box>
+
+            {exportStatus && (
+              <Box>
+                <Typography variant="body2" color="primary" gutterBottom>
+                  {exportStatus}
+                </Typography>
+                {exportLoading && <LinearProgress sx={{ mt: 1 }} />}
+              </Box>
+            )}
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setExportDialogOpen(false)} disabled={exportLoading}>
+            Отмена
+          </Button>
+          <Button
+            onClick={handleGenerateReport}
+            variant="contained"
+            disabled={exportLoading}
+            startIcon={exportLoading ? <CircularProgress size={20} /> : <Download />}
+          >
+            {exportLoading ? 'Генерация...' : 'Сгенерировать'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

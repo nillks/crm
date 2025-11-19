@@ -18,6 +18,7 @@ import { CallsPage } from './pages/calls/CallsPage';
 import { AnalyticsPage } from './pages/analytics/AnalyticsPage';
 import { TasksPage } from './pages/tasks/TasksPage';
 import { TemplatesPage } from './pages/templates/TemplatesPage';
+import { WABAPage } from './pages/admin/WABAPage';
 
 // Компонент для редиректа авторизованных пользователей
 const PublicRoute = ({ children }: { children: ReactNode }) => {
@@ -142,6 +143,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <TemplatesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/waba"
+              element={
+                <ProtectedRoute>
+                  <WABAPage />
                 </ProtectedRoute>
               }
             />
