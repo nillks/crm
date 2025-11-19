@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { HttpModule } from '@nestjs/axios';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ReportsController } from './reports.controller';
 import { ReportsService } from './reports.service';
@@ -11,6 +12,10 @@ import { TelegramModule } from '../telegram/telegram.module';
 
 @Module({
   imports: [
+    HttpModule.register({
+      timeout: 30000,
+      maxRedirects: 5,
+    }),
     TypeOrmModule.forFeature([Ticket, Call, Client, User, Message]),
     TelegramModule,
   ],
