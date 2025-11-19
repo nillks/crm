@@ -80,7 +80,7 @@ class AIService {
    * Генерация ответа через "ChatGPT"
    */
   async generateChatGPTResponse(dto: GenerateAIResponseDto): Promise<AIResponse> {
-    const response = await api.post<AIResponse>('/api/ai/chatgpt/generate', dto);
+    const response = await api.post<AIResponse>('/ai/chatgpt/generate', dto);
     return response.data;
   }
 
@@ -88,7 +88,7 @@ class AIService {
    * Генерация ответа через "Yandex GPT"
    */
   async generateYandexGPTResponse(dto: GenerateAIResponseDto): Promise<AIResponse> {
-    const response = await api.post<AIResponse>('/api/ai/yandex-gpt/generate', dto);
+    const response = await api.post<AIResponse>('/ai/yandex-gpt/generate', dto);
     return response.data;
   }
 
@@ -97,7 +97,7 @@ class AIService {
    */
   async getStats(clientId?: string): Promise<AIStats> {
     const params = clientId ? { clientId } : {};
-    const response = await api.get<AIStats>('/api/ai/stats', { params });
+    const response = await api.get<AIStats>('/ai/stats', { params });
     return response.data;
   }
 
@@ -105,7 +105,7 @@ class AIService {
    * Получить настройки AI для клиента
    */
   async getSetting(clientId: string): Promise<AiSetting | null> {
-    const response = await api.get<AiSetting | null>(`/api/ai/settings/${clientId}`);
+    const response = await api.get<AiSetting | null>(`/ai/settings/${clientId}`);
     return response.data;
   }
 
@@ -113,7 +113,7 @@ class AIService {
    * Создать или обновить настройки AI для клиента
    */
   async updateSetting(clientId: string, dto: UpdateAiSettingDto): Promise<AiSetting> {
-    const response = await api.put<AiSetting>(`/api/ai/settings/${clientId}`, dto);
+    const response = await api.put<AiSetting>(`/ai/settings/${clientId}`, dto);
     return response.data;
   }
 
@@ -121,7 +121,7 @@ class AIService {
    * Переключить включение/выключение AI для клиента
    */
   async toggleSetting(clientId: string): Promise<AiSetting> {
-    const response = await api.post<AiSetting>(`/api/ai/settings/${clientId}/toggle`);
+    const response = await api.post<AiSetting>(`/ai/settings/${clientId}/toggle`);
     return response.data;
   }
 
@@ -137,7 +137,7 @@ class AIService {
     startDate?: string;
     endDate?: string;
   }): Promise<AiLogsResponse> {
-    const response = await api.get<AiLogsResponse>('/api/ai/logs', { params });
+    const response = await api.get<AiLogsResponse>('/ai/logs', { params });
     return response.data;
   }
 }

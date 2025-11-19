@@ -75,8 +75,22 @@ export const AISettingsPage: React.FC = () => {
 
   const loadClients = async () => {
     try {
-      const response = await clientsService.getClients({ page: 1, limit: 1000 });
+      // Используем максимальный лимит 100 (ограничение бэкенда)
+      const response = await clientsService.getClients({ page: 1, limit: 100 });
       setClients(response.data);
+      
+      // Если клиентов больше 100, загружаем остальные
+      if (response.total > 100) {
+        const totalPages = Math.ceil(response.total / 100);
+        const allClients = [...response.data];
+        
+        for (let page = 2; page <= totalPages; page++) {
+          const nextResponse = await clientsService.getClients({ page, limit: 100 });
+          allClients.push(...nextResponse.data);
+        }
+        
+        setClients(allClients);
+      }
     } catch (err: any) {
       setError(getErrorMessage(err));
     }
@@ -140,7 +154,17 @@ export const AISettingsPage: React.FC = () => {
       setError(null);
       setSuccess(null);
 
-      await aiService.updateSetting(selectedClientId, formData);
+      // Очищаем пустые строки и преобразуем данные для отправки
+      const dataToSend: UpdateAiSettingDto = {
+        isEnabled: formData.isEnabled,
+        provider: formData.provider,
+        model: formData.model,
+        systemPrompt: formData.systemPrompt && formData.systemPrompt.trim() ? formData.systemPrompt.trim() : undefined,
+        temperature: formData.temperature !== undefined ? Number(formData.temperature) : undefined,
+        maxTokens: formData.maxTokens !== undefined ? Number(formData.maxTokens) : undefined,
+      };
+
+      await aiService.updateSetting(selectedClientId, dataToSend);
       setSuccess('Настройки успешно сохранены');
       await loadSetting(selectedClientId);
       await loadGlobalStats();
