@@ -112,6 +112,13 @@ export const clientsService = {
   },
 
   /**
+   * Получить полный список клиентов (без явного использования пагинации на стороне вызывающего кода)
+   */
+  async findAll(params?: FilterClientsDto): Promise<PaginatedClients> {
+    return this.getClients(params);
+  },
+
+  /**
    * Получить клиента по ID
    */
   async getClientById(id: string, include?: string): Promise<Client> {
