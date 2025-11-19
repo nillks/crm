@@ -1131,36 +1131,41 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
       }
 
       // Автоматический вызов AI для входящих сообщений (только для личных чатов)
+      // Выполняем асинхронно, чтобы не блокировать обработку сообщения
       if (!isGroupChat && content && content.trim() && client) {
-        try {
-          const aiSetting = await this.aiService.getSetting(client.id);
-          if (aiSetting && aiSetting.isEnabled) {
-            this.logger.log(`🤖 AI включен для клиента ${client.id}, генерирую ответ...`);
-            
-            // Генерируем ответ через AI
-            const aiResponse = await this.aiService.generateChatGPTResponse({
-              message: content,
-              clientId: client.id,
-              userId: null, // Системный вызов
-            });
+        // Запускаем AI в фоне, не ждем результата
+        setImmediate(async () => {
+          try {
+            const aiSetting = await this.aiService.getSetting(client.id);
+            if (aiSetting && aiSetting.isEnabled) {
+              this.logger.log(`🤖 AI включен для клиента ${client.id}, генерирую ответ...`);
+              
+              // Генерируем ответ через AI
+              const aiResponse = await this.aiService.generateChatGPTResponse({
+                message: content,
+                clientId: client.id,
+                userId: null, // Системный вызов
+              });
 
-            if (aiResponse && aiResponse.response) {
-              this.logger.log(`✅ AI сгенерировал ответ: ${aiResponse.response.substring(0, 100)}...`);
-              
-              // Отправляем ответ клиенту
-              await this.sendMessage({
-                phoneNumber: phoneNumber,
-                message: aiResponse.response,
-                ticketId: ticket?.id || null,
-              }, null); // null user = системный вызов
-              
-              this.logger.log(`✅ AI ответ отправлен клиенту ${phoneNumber}`);
+              if (aiResponse && aiResponse.response) {
+                this.logger.log(`✅ AI сгенерировал ответ: ${aiResponse.response.substring(0, 100)}...`);
+                
+                // Отправляем ответ клиенту
+                await this.sendMessage({
+                  phoneNumber: phoneNumber,
+                  message: aiResponse.response,
+                  ticketId: ticket?.id || null,
+                }, null); // null user = системный вызов
+                
+                this.logger.log(`✅ AI ответ отправлен клиенту ${phoneNumber}`);
+              }
             }
+          } catch (aiError: any) {
+            // Не прерываем обработку сообщения, если AI не сработал
+            this.logger.error(`⚠️ Ошибка при вызове AI: ${aiError.message || aiError}`);
+            this.logger.error(`⚠️ Stack trace: ${aiError.stack || 'N/A'}`);
           }
-        } catch (aiError: any) {
-          // Не прерываем обработку сообщения, если AI не сработал
-          this.logger.error(`⚠️ Ошибка при вызове AI: ${aiError.message}`);
-        }
+        });
       }
     } catch (error) {
       this.logger.error('Error processing incoming message:', error);

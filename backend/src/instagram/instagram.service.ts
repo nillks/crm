@@ -497,36 +497,41 @@ export class InstagramService implements OnModuleInit, OnModuleDestroy {
       this.logger.log(`✅ Chatrace Instagram message processed: ${finalMessageId} from ${finalUsername} (${senderId})`);
 
       // Автоматический вызов AI для входящих сообщений
+      // Выполняем асинхронно, чтобы не блокировать обработку сообщения
       if (text && text.trim() && client) {
-        try {
-          const aiSetting = await this.aiService.getSetting(client.id);
-          if (aiSetting && aiSetting.isEnabled) {
-            this.logger.log(`🤖 AI включен для клиента ${client.id}, генерирую ответ...`);
-            
-            // Генерируем ответ через AI
-            const aiResponse = await this.aiService.generateChatGPTResponse({
-              message: text,
-              clientId: client.id,
-              userId: null, // Системный вызов
-            });
+        // Запускаем AI в фоне, не ждем результата
+        setImmediate(async () => {
+          try {
+            const aiSetting = await this.aiService.getSetting(client.id);
+            if (aiSetting && aiSetting.isEnabled) {
+              this.logger.log(`🤖 AI включен для клиента ${client.id}, генерирую ответ...`);
+              
+              // Генерируем ответ через AI
+              const aiResponse = await this.aiService.generateChatGPTResponse({
+                message: text,
+                clientId: client.id,
+                userId: null, // Системный вызов
+              });
 
-            if (aiResponse && aiResponse.response) {
-              this.logger.log(`✅ AI сгенерировал ответ: ${aiResponse.response.substring(0, 100)}...`);
-              
-              // Отправляем ответ клиенту
-              await this.sendMessage({
-                recipientId: senderId,
-                message: aiResponse.response,
-                ticketId: ticket?.id || null,
-              }, null); // null user = системный вызов
-              
-              this.logger.log(`✅ AI ответ отправлен клиенту ${senderId}`);
+              if (aiResponse && aiResponse.response) {
+                this.logger.log(`✅ AI сгенерировал ответ: ${aiResponse.response.substring(0, 100)}...`);
+                
+                // Отправляем ответ клиенту
+                await this.sendMessage({
+                  recipientId: senderId,
+                  message: aiResponse.response,
+                  ticketId: ticket?.id || null,
+                }, null); // null user = системный вызов
+                
+                this.logger.log(`✅ AI ответ отправлен клиенту ${senderId}`);
+              }
             }
+          } catch (aiError: any) {
+            // Не прерываем обработку сообщения, если AI не сработал
+            this.logger.error(`⚠️ Ошибка при вызове AI: ${aiError.message || aiError}`);
+            this.logger.error(`⚠️ Stack trace: ${aiError.stack || 'N/A'}`);
           }
-        } catch (aiError: any) {
-          // Не прерываем обработку сообщения, если AI не сработал
-          this.logger.error(`⚠️ Ошибка при вызове AI: ${aiError.message}`);
-        }
+        });
       }
     } catch (error) {
       this.logger.error('Error processing single Chatrace message:', error);
