@@ -20,7 +20,11 @@ export default defineConfig({
         manualChunks: undefined,
       },
     },
+    // Копируем static.json в dist для Render.com
+    copyPublicDir: true,
   },
   // Для правильной работы SPA на Render
   base: '/',
+  // Убеждаемся, что public файлы копируются
+  publicDir: 'public',
 })
