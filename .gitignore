@@ -48,3 +48,10 @@ frontend/.vite/
 *.tmp
 *.temp
 .cache/
+
+# Environment variables
+.env
+.env.*
+!.env.example
+*.env
+*.env copy
