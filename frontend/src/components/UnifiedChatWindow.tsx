@@ -24,6 +24,8 @@ import {
 import { messagesService, type Message, MessageChannel, MessageDirection } from '../services/messages.service';
 import { getErrorMessage } from '../utils/errorMessages';
 import { clientsService, type Client } from '../services/clients.service';
+import { QuickReplySelector } from './QuickReplySelector';
+import { QuickReply } from '../services/quick-replies.service';
 
 interface UnifiedChatWindowProps {
   clientId?: string;
@@ -400,6 +402,12 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({
       e.preventDefault();
       handleSendMessage();
     }
+  };
+
+  const handleTemplateSelect = (template: QuickReply) => {
+    setNewMessage(template.content);
+    // TODO: Если в шаблоне есть файлы, их нужно будет отправить отдельно
+    // Пока просто вставляем текст
   };
 
   // Фильтрация по каналу
@@ -864,6 +872,11 @@ export const UnifiedChatWindow: React.FC<UnifiedChatWindowProps> = ({
           )}
           
           <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-end' }}>
+            <QuickReplySelector
+              channel={selectedChannel}
+              onSelect={handleTemplateSelect}
+              disabled={sending || !selectedChannel || availableChannels.length === 0}
+            />
             <TextField
               fullWidth
               multiline

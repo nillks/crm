@@ -19,6 +19,7 @@ import { AIModule } from './ai/ai.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { MediaModule } from './media/media.module';
 import { TasksModule } from './tasks/tasks.module';
+import { QuickRepliesModule } from './quick-replies/quick-replies.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { AllEntities } from './entities';
 import { TestPermissionsController } from './roles/test-permissions.controller';
@@ -87,6 +88,7 @@ import { TestPermissionsController } from './roles/test-permissions.controller';
     AnalyticsModule,
     MediaModule,
     TasksModule,
+    QuickRepliesModule,
   ],
   controllers: [AppController, HealthController, TestPermissionsController],
   providers: [

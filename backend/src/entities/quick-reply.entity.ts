@@ -28,6 +28,18 @@ export class QuickReply {
   @Column({ type: 'text' })
   content: string;
 
+  @Column({ type: 'varchar', length: 50, default: 'text' })
+  type: string; // 'text' | 'file'
+
+  @Column({ type: 'jsonb', nullable: true })
+  files: Array<{
+    id: string;
+    fileName: string;
+    url: string;
+    mimeType: string;
+    type: string;
+  }>; // Массив файлов для шаблона
+
   @Column({ type: 'varchar', length: 50 })
   channel: QuickReplyChannel;
 
