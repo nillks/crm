@@ -17,6 +17,7 @@ import { TelegramModule } from './telegram/telegram.module';
 import { InstagramModule } from './instagram/instagram.module';
 import { AIModule } from './ai/ai.module';
 import { AnalyticsModule } from './analytics/analytics.module';
+import { MediaModule } from './media/media.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { AllEntities } from './entities';
 import { TestPermissionsController } from './roles/test-permissions.controller';
@@ -83,6 +84,7 @@ import { TestPermissionsController } from './roles/test-permissions.controller';
     InstagramModule,
     AIModule,
     AnalyticsModule,
+    MediaModule,
   ],
   controllers: [AppController, HealthController, TestPermissionsController],
   providers: [

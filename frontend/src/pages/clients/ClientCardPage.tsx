@@ -44,6 +44,9 @@ import type { Client } from '../../services/clients.service';
 import { aiService } from '../../services/ai.service';
 import type { AiLog, AiSetting } from '../../services/ai.service';
 import { getErrorMessage } from '../../utils/errorMessages';
+import { FileUpload } from '../../components/FileUpload';
+import { FileList } from '../../components/FileList';
+import { MediaFile } from '../../services/media.service';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -612,9 +615,36 @@ export const ClientCardPage: React.FC = () => {
             </TabPanel>
 
             <TabPanel value={tabValue} index={3}>
-              <Typography variant="body1" color="text.secondary" align="center" sx={{ py: 4 }}>
-                Файлы будут доступны в следующей версии
+              <Typography variant="h6" gutterBottom>
+                Файлы клиента
               </Typography>
+              {client && (
+                <>
+                  <Box sx={{ mb: 4 }}>
+                    <FileUpload
+                      clientId={client.id}
+                      onUploadSuccess={(file: MediaFile) => {
+                        // Можно обновить список файлов или показать уведомление
+                        console.log('File uploaded:', file);
+                      }}
+                      onUploadError={(error: string) => {
+                        setError(error);
+                      }}
+                    />
+                  </Box>
+                  <Box>
+                    <Typography variant="h6" gutterBottom>
+                      Загруженные файлы
+                    </Typography>
+                    <FileList
+                      clientId={client.id}
+                      onFileDeleted={() => {
+                        // Обновление списка произойдет автоматически
+                      }}
+                    />
+                  </Box>
+                </>
+              )}
             </TabPanel>
 
             <TabPanel value={tabValue} index={4}>
