@@ -17,6 +17,7 @@ import { Ticket, TicketStatus, TicketChannel } from '../entities/ticket.entity';
 import { User } from '../entities/user.entity';
 import { RoleName } from '../entities/role.entity';
 import { SendInstagramMessageDto } from './dto/send-message.dto';
+import { AIService } from '../ai/ai.service';
 
 // Мок-формат для webhook (имитация Instagram Graph API)
 interface InstagramWebhook {
@@ -64,6 +65,7 @@ export class InstagramService implements OnModuleInit, OnModuleDestroy {
     private ticketsRepository: Repository<Ticket>,
     @InjectRepository(User)
     private usersRepository: Repository<User>,
+    private aiService: AIService,
   ) {
     this.apiUrl = this.configService.get('INSTAGRAM_API_URL', 'https://api.chatrace.com');
     this.accessToken = this.configService.get('INSTAGRAM_ACCESS_TOKEN', '');
@@ -493,6 +495,39 @@ export class InstagramService implements OnModuleInit, OnModuleDestroy {
       await this.messagesRepository.save(savedMessage);
 
       this.logger.log(`✅ Chatrace Instagram message processed: ${finalMessageId} from ${finalUsername} (${senderId})`);
+
+      // Автоматический вызов AI для входящих сообщений
+      if (text && text.trim() && client) {
+        try {
+          const aiSetting = await this.aiService.getSetting(client.id);
+          if (aiSetting && aiSetting.isEnabled) {
+            this.logger.log(`🤖 AI включен для клиента ${client.id}, генерирую ответ...`);
+            
+            // Генерируем ответ через AI
+            const aiResponse = await this.aiService.generateChatGPTResponse({
+              message: text,
+              clientId: client.id,
+              userId: null, // Системный вызов
+            });
+
+            if (aiResponse && aiResponse.response) {
+              this.logger.log(`✅ AI сгенерировал ответ: ${aiResponse.response.substring(0, 100)}...`);
+              
+              // Отправляем ответ клиенту
+              await this.sendMessage({
+                recipientId: senderId,
+                message: aiResponse.response,
+                ticketId: ticket?.id || null,
+              }, null); // null user = системный вызов
+              
+              this.logger.log(`✅ AI ответ отправлен клиенту ${senderId}`);
+            }
+          }
+        } catch (aiError: any) {
+          // Не прерываем обработку сообщения, если AI не сработал
+          this.logger.error(`⚠️ Ошибка при вызове AI: ${aiError.message}`);
+        }
+      }
     } catch (error) {
       this.logger.error('Error processing single Chatrace message:', error);
       throw error;
@@ -636,7 +671,7 @@ export class InstagramService implements OnModuleInit, OnModuleDestroy {
   /**
    * Отправить сообщение через Instagram API (или мок)
    */
-  async sendMessage(sendMessageDto: SendInstagramMessageDto, user: User): Promise<any> {
+  async sendMessage(sendMessageDto: SendInstagramMessageDto, user: User | null): Promise<any> {
     try {
       const { recipientId, message, ticketId } = sendMessageDto;
 

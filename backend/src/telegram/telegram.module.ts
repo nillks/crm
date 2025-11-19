@@ -6,9 +6,13 @@ import { Message } from '../entities/message.entity';
 import { Client } from '../entities/client.entity';
 import { Ticket } from '../entities/ticket.entity';
 import { User } from '../entities/user.entity';
+import { AIModule } from '../ai/ai.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Message, Client, Ticket, User])],
+  imports: [
+    TypeOrmModule.forFeature([Message, Client, Ticket, User]),
+    AIModule,
+  ],
   controllers: [TelegramController],
   providers: [TelegramService],
   exports: [TelegramService],

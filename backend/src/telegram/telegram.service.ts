@@ -17,6 +17,7 @@ import { Ticket, TicketStatus, TicketChannel } from '../entities/ticket.entity';
 import { User } from '../entities/user.entity';
 import { RoleName } from '../entities/role.entity';
 import { SendTelegramMessageDto } from './dto/send-message.dto';
+import { AIService } from '../ai/ai.service';
 
 @Injectable()
 export class TelegramService implements OnModuleInit, OnModuleDestroy {
@@ -34,6 +35,7 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
     private ticketsRepository: Repository<Ticket>,
     @InjectRepository(User)
     private usersRepository: Repository<User>,
+    private aiService: AIService,
   ) {
     this.botToken = this.configService.get('TELEGRAM_BOT_TOKEN', '');
 
@@ -158,6 +160,39 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
       this.logger.log(
         `Incoming Telegram message processed: ${messageId} from ${username} (${chatId})`,
       );
+
+      // Автоматический вызов AI для входящих сообщений
+      if (content && content.trim() && client) {
+        try {
+          const aiSetting = await this.aiService.getSetting(client.id);
+          if (aiSetting && aiSetting.isEnabled) {
+            this.logger.log(`🤖 AI включен для клиента ${client.id}, генерирую ответ...`);
+            
+            // Генерируем ответ через AI
+            const aiResponse = await this.aiService.generateChatGPTResponse({
+              message: content,
+              clientId: client.id,
+              userId: null, // Системный вызов
+            });
+
+            if (aiResponse && aiResponse.response) {
+              this.logger.log(`✅ AI сгенерировал ответ: ${aiResponse.response.substring(0, 100)}...`);
+              
+              // Отправляем ответ клиенту
+              await this.sendMessage({
+                chatId: chatId,
+                message: aiResponse.response,
+                ticketId: ticket?.id || null,
+              }, null); // null user = системный вызов
+              
+              this.logger.log(`✅ AI ответ отправлен клиенту ${chatId}`);
+            }
+          }
+        } catch (aiError: any) {
+          // Не прерываем обработку сообщения, если AI не сработал
+          this.logger.error(`⚠️ Ошибка при вызове AI: ${aiError.message}`);
+        }
+      }
     } catch (error) {
       this.logger.error('Error processing incoming Telegram message:', error);
     }
@@ -250,7 +285,7 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
   /**
    * Отправить сообщение через Telegram Bot API
    */
-  async sendMessage(sendMessageDto: SendTelegramMessageDto, user: User): Promise<any> {
+  async sendMessage(sendMessageDto: SendTelegramMessageDto, user: User | null): Promise<any> {
     try {
       const { chatId, message, ticketId } = sendMessageDto;
 

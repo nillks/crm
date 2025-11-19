@@ -17,6 +17,7 @@ import { Ticket, TicketStatus, TicketChannel } from '../entities/ticket.entity';
 import { User } from '../entities/user.entity';
 import { Role, RoleName } from '../entities/role.entity';
 import { SendMessageDto } from './dto/send-message.dto';
+import { AIService } from '../ai/ai.service';
 
 // Green API webhook format
 interface GreenAPIWebhook {
@@ -69,6 +70,7 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
     private ticketsRepository: Repository<Ticket>,
     @InjectRepository(User)
     private usersRepository: Repository<User>,
+    private aiService: AIService,
   ) {
     this.apiUrl = this.configService.get('WHATSAPP_API_URL', '');
     this.idInstance = this.configService.get('WHATSAPP_ID_INSTANCE', '');
@@ -1127,6 +1129,39 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
       } else {
         this.logger.error(`❌ Message NOT found in DB after save!`);
       }
+
+      // Автоматический вызов AI для входящих сообщений (только для личных чатов)
+      if (!isGroupChat && content && content.trim() && client) {
+        try {
+          const aiSetting = await this.aiService.getSetting(client.id);
+          if (aiSetting && aiSetting.isEnabled) {
+            this.logger.log(`🤖 AI включен для клиента ${client.id}, генерирую ответ...`);
+            
+            // Генерируем ответ через AI
+            const aiResponse = await this.aiService.generateChatGPTResponse({
+              message: content,
+              clientId: client.id,
+              userId: null, // Системный вызов
+            });
+
+            if (aiResponse && aiResponse.response) {
+              this.logger.log(`✅ AI сгенерировал ответ: ${aiResponse.response.substring(0, 100)}...`);
+              
+              // Отправляем ответ клиенту
+              await this.sendMessage({
+                phoneNumber: phoneNumber,
+                message: aiResponse.response,
+                ticketId: ticket?.id || null,
+              }, null); // null user = системный вызов
+              
+              this.logger.log(`✅ AI ответ отправлен клиенту ${phoneNumber}`);
+            }
+          }
+        } catch (aiError: any) {
+          // Не прерываем обработку сообщения, если AI не сработал
+          this.logger.error(`⚠️ Ошибка при вызове AI: ${aiError.message}`);
+        }
+      }
     } catch (error) {
       this.logger.error('Error processing incoming message:', error);
       throw error;
@@ -1407,7 +1442,7 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
   /**
    * Отправить сообщение через Green API
    */
-  async sendMessage(sendMessageDto: SendMessageDto, user: User): Promise<any> {
+  async sendMessage(sendMessageDto: SendMessageDto, user: User | null): Promise<any> {
     // Объявляем chatId на уровне функции, чтобы он был доступен в catch блоке
     let chatId = '';
     

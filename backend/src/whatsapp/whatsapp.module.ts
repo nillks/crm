@@ -8,6 +8,7 @@ import { Client } from '../entities/client.entity';
 import { Ticket } from '../entities/ticket.entity';
 import { User } from '../entities/user.entity';
 import { Role } from '../entities/role.entity';
+import { AIModule } from '../ai/ai.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { Role } from '../entities/role.entity';
       maxRedirects: 5,
     }),
     TypeOrmModule.forFeature([Message, Client, Ticket, User]),
+    AIModule,
   ],
   controllers: [WhatsAppController],
   providers: [WhatsAppService],
