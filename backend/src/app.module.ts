@@ -18,6 +18,7 @@ import { InstagramModule } from './instagram/instagram.module';
 import { AIModule } from './ai/ai.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { MediaModule } from './media/media.module';
+import { TasksModule } from './tasks/tasks.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { AllEntities } from './entities';
 import { TestPermissionsController } from './roles/test-permissions.controller';
@@ -85,6 +86,7 @@ import { TestPermissionsController } from './roles/test-permissions.controller';
     AIModule,
     AnalyticsModule,
     MediaModule,
+    TasksModule,
   ],
   controllers: [AppController, HealthController, TestPermissionsController],
   providers: [

@@ -16,6 +16,7 @@ import { ChatPage } from './pages/chat/ChatPage';
 import { AISettingsPage } from './pages/settings/AISettingsPage';
 import { CallsPage } from './pages/calls/CallsPage';
 import { AnalyticsPage } from './pages/analytics/AnalyticsPage';
+import { TasksPage } from './pages/tasks/TasksPage';
 
 // Компонент для редиректа авторизованных пользователей
 const PublicRoute = ({ children }: { children: ReactNode }) => {
@@ -124,6 +125,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <AnalyticsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/tasks"
+              element={
+                <ProtectedRoute>
+                  <TasksPage />
                 </ProtectedRoute>
               }
             />

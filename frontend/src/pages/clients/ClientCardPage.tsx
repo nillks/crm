@@ -38,6 +38,7 @@ import {
   AttachFile,
   Task,
   SmartToy,
+  Add,
 } from '@mui/icons-material';
 import { clientsService } from '../../services/clients.service';
 import type { Client } from '../../services/clients.service';
@@ -47,6 +48,7 @@ import { getErrorMessage } from '../../utils/errorMessages';
 import { FileUpload } from '../../components/FileUpload';
 import { FileList } from '../../components/FileList';
 import { MediaFile } from '../../services/media.service';
+import { TasksList } from '../../components/TasksList';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -648,9 +650,22 @@ export const ClientCardPage: React.FC = () => {
             </TabPanel>
 
             <TabPanel value={tabValue} index={4}>
-              <Typography variant="body1" color="text.secondary" align="center" sx={{ py: 4 }}>
-                Задачи будут доступны в следующей версии
+              <Typography variant="h6" gutterBottom>
+                Задачи клиента
               </Typography>
+              {client && (
+                <Box>
+                  <Button
+                    variant="contained"
+                    startIcon={<Add />}
+                    onClick={() => navigate(`/tasks?clientId=${client.id}`)}
+                    sx={{ mb: 2, borderRadius: 2 }}
+                  >
+                    Создать задачу
+                  </Button>
+                  <TasksList clientId={client.id} />
+                </Box>
+              )}
             </TabPanel>
 
             <TabPanel value={tabValue} index={5}>
