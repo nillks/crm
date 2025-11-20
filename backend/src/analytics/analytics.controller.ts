@@ -54,5 +54,20 @@ export class AnalyticsController {
 
     return this.analyticsService.getChannelAnalytics(start, end);
   }
+
+  /**
+   * Получить KPI по операторам
+   * GET /analytics/operators-kpi?startDate=2024-01-01&endDate=2024-01-31
+   */
+  @Get('operators-kpi')
+  async getOperatorsKPI(
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    const start = startDate ? new Date(startDate) : undefined;
+    const end = endDate ? new Date(endDate) : undefined;
+
+    return this.analyticsService.calculateOperatorKPI(start, end);
+  }
 }
 

@@ -64,6 +64,9 @@ export class MediaFile {
   @Column({ type: 'varchar', length: 255, nullable: true })
   externalId: string; // ID файла из внешней системы
 
+  @Column({ type: 'jsonb', nullable: true })
+  metadata: Record<string, any>; // Метаданные (archived, archivedAt, archivePath и т.д.)
+
   @CreateDateColumn()
   createdAt: Date;
 }

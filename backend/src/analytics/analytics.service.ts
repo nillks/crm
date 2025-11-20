@@ -5,6 +5,7 @@ import { Ticket, TicketStatus } from '../entities/ticket.entity';
 import { Message, MessageDirection } from '../entities/message.entity';
 import { Call, CallStatus } from '../entities/call.entity';
 import { Task, TaskStatus } from '../entities/task.entity';
+import { User } from '../entities/user.entity';
 import { SLAMetricsDto } from './dto/sla-metrics.dto';
 import { KPIMetricsDto } from './dto/kpi-metrics.dto';
 import { ChannelAnalyticsDto } from './dto/channel-analytics.dto';
@@ -22,6 +23,8 @@ export class AnalyticsService {
     private callsRepository: Repository<Call>,
     @InjectRepository(Task)
     private tasksRepository: Repository<Task>,
+    @InjectRepository(User)
+    private usersRepository: Repository<User>,
   ) {}
 
   /**
@@ -153,6 +156,119 @@ export class AnalyticsService {
       overdueTickets,
       period,
     };
+  }
+
+  /**
+   * Расчёт KPI по операторам
+   */
+  async calculateOperatorKPI(startDate?: Date, endDate?: Date): Promise<Array<{
+    operatorId: string;
+    operatorName: string;
+    operatorEmail: string;
+    role: string;
+    ticketsCreated: number;
+    ticketsAssigned: number;
+    ticketsClosed: number;
+    averageResolutionTime: number;
+    messagesSent: number;
+    callsHandled: number;
+  }>> {
+    const period = this.getPeriod(startDate, endDate);
+
+    // Получаем всех операторов
+    const users = await this.usersRepository.find({
+      relations: ['role'],
+      where: {
+        role: {
+          name: Not('admin'),
+        },
+      },
+    });
+
+    const operatorKPIs = await Promise.all(
+      users.map(async (user) => {
+        const operatorId = user.id;
+
+        // Тикеты созданные
+        const ticketsCreated = await this.ticketsRepository.count({
+          where: {
+            createdById: operatorId,
+            createdAt: Between(period.startDate, period.endDate),
+          },
+        });
+
+        // Тикеты назначенные
+        const ticketsAssigned = await this.ticketsRepository.count({
+          where: {
+            assignedToId: operatorId,
+            createdAt: Between(period.startDate, period.endDate),
+          },
+        });
+
+        // Тикеты закрытые
+        const ticketsClosed = await this.ticketsRepository.count({
+          where: {
+            assignedToId: operatorId,
+            status: TicketStatus.CLOSED,
+            closedAt: Between(period.startDate, period.endDate),
+          },
+        });
+
+        // Среднее время решения
+        const closedTickets = await this.ticketsRepository.find({
+          where: {
+            assignedToId: operatorId,
+            status: TicketStatus.CLOSED,
+            closedAt: Between(period.startDate, period.endDate),
+          },
+        });
+
+        const resolutionTimes = closedTickets
+          .filter((t) => t.closedAt && t.createdAt)
+          .map((t) => {
+            const diff = t.closedAt!.getTime() - t.createdAt.getTime();
+            return diff / (1000 * 60 * 60); // конвертируем в часы
+          })
+          .filter((time) => time >= 0);
+
+        const averageResolutionTime =
+          resolutionTimes.length > 0
+            ? resolutionTimes.reduce((sum, time) => sum + time, 0) / resolutionTimes.length
+            : 0;
+
+        // Сообщения отправленные
+        const messagesSent = await this.messagesRepository.count({
+          where: {
+            userId: operatorId,
+            direction: MessageDirection.OUTBOUND,
+            createdAt: Between(period.startDate, period.endDate),
+          },
+        });
+
+        // Звонки обработанные
+        const callsHandled = await this.callsRepository.count({
+          where: {
+            operatorId: operatorId,
+            startedAt: Between(period.startDate, period.endDate),
+          },
+        });
+
+        return {
+          operatorId,
+          operatorName: user.name || 'N/A',
+          operatorEmail: user.email || 'N/A',
+          role: user.role?.name || 'N/A',
+          ticketsCreated,
+          ticketsAssigned,
+          ticketsClosed,
+          averageResolutionTime: Math.round(averageResolutionTime * 100) / 100,
+          messagesSent,
+          callsHandled,
+        };
+      }),
+    );
+
+    return operatorKPIs;
   }
 
   /**

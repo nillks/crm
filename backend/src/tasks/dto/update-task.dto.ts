@@ -1,5 +1,5 @@
 import { IsString, IsUUID, IsOptional, IsEnum, IsInt, Min, Max, IsDateString } from 'class-validator';
-import { TaskStatus, TaskPriority } from '../../entities/task.entity';
+import { TaskStatus, TaskPriority, TaskType } from '../../entities/task.entity';
 
 export class UpdateTaskDto {
   @IsString()
@@ -31,6 +31,10 @@ export class UpdateTaskDto {
   @IsString()
   @IsOptional()
   category?: string;
+
+  @IsEnum(TaskType)
+  @IsOptional()
+  type?: TaskType;
 
   @IsDateString()
   @IsOptional()

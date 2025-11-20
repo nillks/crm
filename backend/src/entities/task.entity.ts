@@ -27,6 +27,14 @@ export enum TaskPriority {
   CRITICAL = 5,
 }
 
+export enum TaskType {
+  CALL = 'call', // Позвонить
+  MEETING = 'meeting', // Назначить встречу
+  MESSAGE = 'message', // Написать сообщение
+  FOLLOW_UP = 'follow_up', // Последующее действие
+  OTHER = 'other', // Другое
+}
+
 @Entity('tasks')
 @Index(['clientId'])
 @Index(['assignedToId'])
@@ -66,6 +74,9 @@ export class Task {
 
   @Column({ type: 'varchar', length: 100, nullable: true })
   category: string;
+
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  type: TaskType; // Тип задачи (позвонить, назначить встречу, написать сообщение)
 
   @Column({ type: 'timestamp', nullable: true })
   dueDate: Date;

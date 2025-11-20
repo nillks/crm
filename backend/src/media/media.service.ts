@@ -5,6 +5,7 @@ import {
   NotFoundException,
   OnModuleInit,
 } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, LessThan } from 'typeorm';
@@ -26,7 +27,7 @@ export class MediaService implements OnModuleInit {
   private readonly logger = new Logger(MediaService.name);
   private readonly uploadDir: string;
   private readonly maxFileSize: number = 50 * 1024 * 1024; // 50MB
-  private readonly retentionDays: number = 90; // 3 месяца
+  private readonly retentionDays: number = 180; // 6 месяцев
 
   constructor(
     private configService: ConfigService,
@@ -312,6 +313,67 @@ export class MediaService implements OnModuleInit {
         this.logger.error(`Failed to delete old file ${file.id}: ${error}`);
       }
     }
+  }
+
+  /**
+   * Автоматическая архивация старых файлов (запускается каждый день в 2:00)
+   */
+  @Cron(CronExpression.EVERY_DAY_AT_2AM)
+  async archiveOldFiles(): Promise<void> {
+    this.logger.log('🔄 Starting automatic file archiving...');
+    
+    const archiveCutoffDate = new Date();
+    archiveCutoffDate.setDate(archiveCutoffDate.getDate() - this.retentionDays);
+    
+    const filesToArchive = await this.mediaFileRepository.find({
+      where: {
+        createdAt: LessThan(archiveCutoffDate),
+      },
+    });
+
+    if (filesToArchive.length === 0) {
+      this.logger.log('✅ No files to archive');
+      return;
+    }
+
+    this.logger.log(`📦 Archiving ${filesToArchive.length} files...`);
+
+    // Создаем директорию для архива, если её нет
+    const archiveDir = path.join(this.uploadDir, 'archive');
+    try {
+      await mkdir(archiveDir, { recursive: true });
+    } catch (error) {
+      this.logger.error('Failed to create archive directory:', error);
+      return;
+    }
+
+    let archivedCount = 0;
+    for (const file of filesToArchive) {
+      try {
+        const filePath = await this.getFilePath(file.id);
+        const fileName = path.basename(file.url);
+        const archivePath = path.join(archiveDir, fileName);
+
+        // Перемещаем файл в архив
+        if (fs.existsSync(filePath)) {
+          fs.renameSync(filePath, archivePath);
+          
+          // Обновляем метаданные файла
+          const metadata = file.metadata || {};
+          metadata.archived = true;
+          metadata.archivedAt = new Date().toISOString();
+          metadata.archivePath = archivePath;
+          
+          // Обновляем запись в БД
+          await this.mediaFileRepository.update(file.id, { metadata });
+          archivedCount++;
+        }
+      } catch (error) {
+        this.logger.error(`Failed to archive file ${file.id}:`, error);
+      }
+    }
+
+    this.logger.log(`✅ Archived ${archivedCount} files`);
   }
 
   /**

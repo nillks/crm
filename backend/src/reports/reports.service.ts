@@ -128,7 +128,8 @@ export class ReportsService {
       .createQueryBuilder('ticket')
       .leftJoinAndSelect('ticket.client', 'client')
       .leftJoinAndSelect('ticket.createdBy', 'createdBy')
-      .leftJoinAndSelect('ticket.assignedTo', 'assignedTo');
+      .leftJoinAndSelect('ticket.assignedTo', 'assignedTo')
+      .leftJoinAndSelect('assignedTo.role', 'role');
 
     if (startDate && endDate) {
       queryBuilder.where('ticket.createdAt BETWEEN :startDate AND :endDate', {
@@ -164,6 +165,30 @@ export class ReportsService {
     worksheet.addRow({
       id: 'ИТОГО',
       title: `Всего тикетов: ${tickets.length}`,
+    });
+
+    // Добавляем группировку по линиям
+    worksheet.addRow({});
+    worksheet.addRow({ id: 'ГРУППИРОВКА ПО ЛИНИЯМ' });
+    const lineGroups: Record<string, number> = {};
+    tickets.forEach((ticket) => {
+      const line = ticket.assignedTo?.role?.name || 'Не назначено';
+      lineGroups[line] = (lineGroups[line] || 0) + 1;
+    });
+    Object.entries(lineGroups).forEach(([line, count]) => {
+      worksheet.addRow({ id: line, title: `Тикетов: ${count}` });
+    });
+
+    // Добавляем группировку по менеджерам
+    worksheet.addRow({});
+    worksheet.addRow({ id: 'ГРУППИРОВКА ПО МЕНЕДЖЕРАМ' });
+    const managerGroups: Record<string, number> = {};
+    tickets.forEach((ticket) => {
+      const manager = ticket.assignedTo?.email || 'Не назначено';
+      managerGroups[manager] = (managerGroups[manager] || 0) + 1;
+    });
+    Object.entries(managerGroups).forEach(([manager, count]) => {
+      worksheet.addRow({ id: manager, title: `Тикетов: ${count}` });
     });
 
     return workbook;

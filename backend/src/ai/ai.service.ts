@@ -86,6 +86,24 @@ export class AIService {
     let model: string;
     
     try {
+      // Проверяем лимит на AI обработки (200/месяц)
+      const monthlyLimit = 200;
+      const startOfMonth = new Date();
+      startOfMonth.setDate(1);
+      startOfMonth.setHours(0, 0, 0, 0);
+
+      const monthlyUsage = await this.aiLogRepository
+        .createQueryBuilder('log')
+        .where('log.createdAt >= :startOfMonth', { startOfMonth })
+        .andWhere('log.success = :success', { success: true })
+        .getCount();
+
+      if (monthlyUsage >= monthlyLimit) {
+        throw new BadRequestException(
+          `Достигнут месячный лимит AI обработок (${monthlyLimit}). Обратитесь к администратору для увеличения лимита.`,
+        );
+      }
+
       // Получаем настройки AI для клиента, если указан clientId
       if (dto.clientId) {
         aiSetting = await this.aiSettingRepository.findOne({
