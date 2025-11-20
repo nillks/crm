@@ -49,6 +49,14 @@ class UsersService {
   async changePassword(changePasswordDto: ChangePasswordDto): Promise<void> {
     await api.put('/users/me/password', changePasswordDto);
   }
+
+  /**
+   * Получить список всех пользователей
+   */
+  async getUsers(): Promise<User[]> {
+    const response = await api.get<User[]>('/users');
+    return response.data;
+  }
 }
 
 export const usersService = new UsersService();

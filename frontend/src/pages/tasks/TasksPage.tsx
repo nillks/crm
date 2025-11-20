@@ -42,7 +42,7 @@ import moment from 'moment';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { tasksService, Task, TaskStatus, TaskPriority, TaskType, CreateTaskDto, FilterTasksDto } from '../../services/tasks.service';
 import { clientsService } from '../../services/clients.service';
-import api from '../../services/api';
+import { usersService } from '../../services/users.service';
 import { getErrorMessage } from '../../utils/errorMessages';
 import { useAuth } from '../../context/AuthContext';
 
@@ -126,8 +126,8 @@ export const TasksPage: React.FC = () => {
 
   const loadUsers = async () => {
     try {
-      const response = await api.get('/users');
-      setUsers(response.data || []);
+      const users = await usersService.getUsers();
+      setUsers(users || []);
     } catch (err) {
       console.error('Failed to load users:', err);
       setUsers([]);

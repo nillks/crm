@@ -192,5 +192,36 @@ export const clientsService = {
     });
     return response.data;
   },
+
+  /**
+   * Получить комментарии клиента
+   */
+  async getClientComments(clientId: string): Promise<ClientComment[]> {
+    const response = await api.get<ClientComment[]>(`/clients/${clientId}/comments`);
+    return response.data;
+  },
+
+  /**
+   * Создать комментарий к клиенту
+   */
+  async createClientComment(clientId: string, content: string): Promise<ClientComment> {
+    const response = await api.post<ClientComment>(`/clients/${clientId}/comments`, { content });
+    return response.data;
+  },
+
+  /**
+   * Обновить комментарий клиента
+   */
+  async updateClientComment(clientId: string, commentId: string, content: string): Promise<ClientComment> {
+    const response = await api.put<ClientComment>(`/clients/${clientId}/comments/${commentId}`, { content });
+    return response.data;
+  },
+
+  /**
+   * Удалить комментарий клиента
+   */
+  async deleteClientComment(clientId: string, commentId: string): Promise<void> {
+    await api.delete(`/clients/comments/${commentId}`);
+  },
 };
 

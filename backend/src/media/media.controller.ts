@@ -70,10 +70,15 @@ export class MediaController {
    */
   @Get('archive')
   async getArchivedFiles(@Query('page') page?: string, @Query('limit') limit?: string) {
-    return this.mediaService.getArchivedFiles(
+    const result = await this.mediaService.getArchivedFiles(
       page ? parseInt(page, 10) : 1,
       limit ? parseInt(limit, 10) : 20,
     );
+    // Преобразуем формат ответа для совместимости с фронтендом
+    return {
+      files: result.data,
+      total: result.total,
+    };
   }
 
   /**

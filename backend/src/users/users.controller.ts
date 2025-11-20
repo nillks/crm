@@ -84,6 +84,15 @@ export class UsersController {
   }
 
   /**
+   * Получить список всех пользователей
+   * GET /users
+   */
+  @Get()
+  async getUsers() {
+    return this.usersService.findAll();
+  }
+
+  /**
    * Получить статистику лимитов
    * GET /users/limits
    */

@@ -87,6 +87,16 @@ export class UsersService {
   }
 
   /**
+   * Получить всех пользователей
+   */
+  async findAll(): Promise<User[]> {
+    return this.usersRepository.find({
+      relations: ['role'],
+      order: { name: 'ASC' },
+    });
+  }
+
+  /**
    * Поиск пользователей по имени или email
    */
   async searchByName(query: string): Promise<User[]> {
