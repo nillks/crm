@@ -1019,17 +1019,7 @@ export const ClientCardPage: React.FC = () => {
                 Задачи клиента
               </Typography>
               {client && (
-                <Box>
-                  <Button
-                    variant="contained"
-                    startIcon={<Add />}
-                    onClick={() => navigate(`/tasks?clientId=${client.id}`)}
-                    sx={{ mb: 2, borderRadius: 2 }}
-                  >
-                    Создать задачу
-                  </Button>
-                  <TasksList clientId={client.id} />
-                </Box>
+                <TasksList clientId={client.id} />
               )}
             </TabPanel>
 

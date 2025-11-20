@@ -543,7 +543,13 @@ export class ClientsService {
       content,
     });
 
-    return this.clientCommentsRepository.save(comment);
+    const savedComment = await this.clientCommentsRepository.save(comment);
+    
+    // Загружаем комментарий с информацией о пользователе
+    return this.clientCommentsRepository.findOne({
+      where: { id: savedComment.id },
+      relations: ['user'],
+    }) as Promise<ClientComment>;
   }
 
   /**
@@ -565,7 +571,13 @@ export class ClientsService {
     }
 
     comment.content = content;
-    return this.clientCommentsRepository.save(comment);
+    await this.clientCommentsRepository.save(comment);
+    
+    // Загружаем обновленный комментарий с информацией о пользователе
+    return this.clientCommentsRepository.findOne({
+      where: { id: commentId },
+      relations: ['user'],
+    }) as Promise<ClientComment>;
   }
 
   /**

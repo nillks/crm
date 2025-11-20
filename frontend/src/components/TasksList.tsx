@@ -22,9 +22,9 @@ import {
 } from '@mui/material';
 import { Edit, Delete, Add } from '@mui/icons-material';
 import { tasksService, Task, TaskStatus, TaskPriority, CreateTaskDto } from '../services/tasks.service';
+import { usersService } from '../services/users.service';
 import { getErrorMessage } from '../utils/errorMessages';
 import { useAuth } from '../context/AuthContext';
-import api from '../services/api';
 
 interface TasksListProps {
   clientId: string;
@@ -72,10 +72,11 @@ export const TasksList: React.FC<TasksListProps> = ({ clientId, onTaskCreated })
 
   const loadUsers = async () => {
     try {
-      const response = await api.get('/users');
-      setUsers(response.data);
+      const users = await usersService.getUsers();
+      setUsers(users || []);
     } catch (err) {
       console.error('Failed to load users:', err);
+      setUsers([]);
     }
   };
 
