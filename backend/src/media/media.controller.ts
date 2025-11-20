@@ -64,8 +64,64 @@ export class MediaController {
   }
 
   /**
+   * Получить список архивированных файлов
+   * GET /media/archive?page=1&limit=20
+   * ВАЖНО: Этот маршрут должен быть ПЕРЕД @Get(':id'), иначе "archive" будет обработан как UUID
+   */
+  @Get('archive')
+  async getArchivedFiles(@Query('page') page?: string, @Query('limit') limit?: string) {
+    return this.mediaService.getArchivedFiles(
+      page ? parseInt(page, 10) : 1,
+      limit ? parseInt(limit, 10) : 20,
+    );
+  }
+
+  /**
+   * Восстановить файл из архива
+   * POST /media/archive/:id/restore
+   * ВАЖНО: Этот маршрут должен быть ПЕРЕД @Get(':id')
+   */
+  @Post('archive/:id/restore')
+  async restoreFromArchive(@Param('id') id: string) {
+    return this.mediaService.restoreFromArchive(id);
+  }
+
+  /**
+   * Получить файлы клиента
+   * GET /media/client/:clientId
+   * ВАЖНО: Этот маршрут должен быть ПЕРЕД @Get(':id')
+   */
+  @Get('client/:clientId')
+  async getFilesByClient(@Param('clientId') clientId: string) {
+    return this.mediaService.getFilesByClient(clientId);
+  }
+
+  /**
+   * Получить файлы сообщения
+   * GET /media/message/:messageId
+   * ВАЖНО: Этот маршрут должен быть ПЕРЕД @Get(':id')
+   */
+  @Get('message/:messageId')
+  async getFilesByMessage(@Param('messageId') messageId: string) {
+    return this.mediaService.getFilesByMessage(messageId);
+  }
+
+  /**
+   * Получить подписанный URL
+   * GET /media/:id/url
+   * ВАЖНО: Этот маршрут должен быть ПЕРЕД @Get(':id')
+   */
+  @Get(':id/url')
+  async getSignedUrl(@Param('id') id: string, @Query('expiresIn') expiresIn?: string) {
+    const expires = expiresIn ? parseInt(expiresIn, 10) : 3600;
+    const url = await this.mediaService.getSignedUrl(id, expires);
+    return { url, expiresIn: expires };
+  }
+
+  /**
    * Получить файл по ID
    * GET /media/:id
+   * ВАЖНО: Этот маршрут должен быть ПОСЛЕДНИМ, так как он перехватывает все GET запросы
    */
   @Get(':id')
   async getFile(@Param('id') id: string, @Res() res: Response) {
@@ -92,17 +148,6 @@ export class MediaController {
   }
 
   /**
-   * Получить подписанный URL
-   * GET /media/:id/url
-   */
-  @Get(':id/url')
-  async getSignedUrl(@Param('id') id: string, @Query('expiresIn') expiresIn?: string) {
-    const expires = expiresIn ? parseInt(expiresIn, 10) : 3600;
-    const url = await this.mediaService.getSignedUrl(id, expires);
-    return { url, expiresIn: expires };
-  }
-
-  /**
    * Удалить файл
    * DELETE /media/:id
    */
@@ -110,45 +155,6 @@ export class MediaController {
   async deleteFile(@Param('id') id: string) {
     await this.mediaService.deleteFile(id);
     return { message: 'Файл успешно удален' };
-  }
-
-  /**
-   * Получить файлы клиента
-   * GET /media/client/:clientId
-   */
-  @Get('client/:clientId')
-  async getFilesByClient(@Param('clientId') clientId: string) {
-    return this.mediaService.getFilesByClient(clientId);
-  }
-
-  /**
-   * Получить файлы сообщения
-   * GET /media/message/:messageId
-   */
-  @Get('message/:messageId')
-  async getFilesByMessage(@Param('messageId') messageId: string) {
-    return this.mediaService.getFilesByMessage(messageId);
-  }
-
-  /**
-   * Получить список архивированных файлов
-   * GET /media/archive?page=1&limit=20
-   */
-  @Get('archive')
-  async getArchivedFiles(@Query('page') page?: string, @Query('limit') limit?: string) {
-    return this.mediaService.getArchivedFiles(
-      page ? parseInt(page, 10) : 1,
-      limit ? parseInt(limit, 10) : 20,
-    );
-  }
-
-  /**
-   * Восстановить файл из архива
-   * POST /media/archive/:id/restore
-   */
-  @Post('archive/:id/restore')
-  async restoreFromArchive(@Param('id') id: string) {
-    return this.mediaService.restoreFromArchive(id);
   }
 }
 
