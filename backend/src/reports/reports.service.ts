@@ -214,7 +214,11 @@ export class ReportsService {
   /**
    * Генерация отчёта по звонкам
    */
-  private async generateCallsReport(startDate?: Date, endDate?: Date): Promise<ExcelJS.Workbook> {
+  private async generateCallsReport(
+    startDate?: Date,
+    endDate?: Date,
+    selectedFields?: string[],
+  ): Promise<ExcelJS.Workbook> {
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Звонки');
 
@@ -292,7 +296,11 @@ export class ReportsService {
   /**
    * Генерация отчёта по операторам
    */
-  private async generateOperatorsReport(startDate?: Date, endDate?: Date): Promise<ExcelJS.Workbook> {
+  private async generateOperatorsReport(
+    startDate?: Date,
+    endDate?: Date,
+    selectedFields?: string[],
+  ): Promise<ExcelJS.Workbook> {
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Операторы');
 
@@ -383,7 +391,11 @@ export class ReportsService {
   /**
    * Генерация отчёта по клиентам
    */
-  private async generateClientsReport(startDate?: Date, endDate?: Date): Promise<ExcelJS.Workbook> {
+  private async generateClientsReport(
+    startDate?: Date,
+    endDate?: Date,
+    selectedFields?: string[],
+  ): Promise<ExcelJS.Workbook> {
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Клиенты');
 

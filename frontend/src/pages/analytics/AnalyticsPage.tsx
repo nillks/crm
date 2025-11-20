@@ -29,6 +29,8 @@ import {
   Select,
   MenuItem,
   LinearProgress,
+  Switch,
+  FormControlLabel,
 } from '@mui/material';
 import {
   ArrowBack,
@@ -134,6 +136,63 @@ export const AnalyticsPage: React.FC = () => {
   const [exportStatus, setExportStatus] = useState<string | null>(null);
   const [selectedReportType, setSelectedReportType] = useState<ReportType>(ReportType.TICKETS);
   const [selectedFormat, setSelectedFormat] = useState<ReportFormat>(ReportFormat.EXCEL);
+
+  // Доступные поля для каждого типа отчёта
+  const availableFields: Record<ReportType, { key: string; label: string }[]> = {
+    [ReportType.TICKETS]: [
+      { key: 'id', label: 'ID' },
+      { key: 'title', label: 'Название' },
+      { key: 'description', label: 'Описание' },
+      { key: 'status', label: 'Статус' },
+      { key: 'category', label: 'Категория' },
+      { key: 'priority', label: 'Приоритет' },
+      { key: 'channel', label: 'Канал' },
+      { key: 'clientName', label: 'Клиент' },
+      { key: 'assignedTo', label: 'Ответственный' },
+      { key: 'createdAt', label: 'Дата создания' },
+      { key: 'closedAt', label: 'Дата закрытия' },
+    ],
+    [ReportType.CALLS]: [
+      { key: 'id', label: 'ID' },
+      { key: 'clientName', label: 'Клиент' },
+      { key: 'operatorName', label: 'Оператор' },
+      { key: 'duration', label: 'Длительность' },
+      { key: 'status', label: 'Статус' },
+      { key: 'createdAt', label: 'Дата и время' },
+    ],
+    [ReportType.OPERATORS]: [
+      { key: 'name', label: 'Имя' },
+      { key: 'email', label: 'Email' },
+      { key: 'role', label: 'Роль' },
+      { key: 'ticketsCount', label: 'Тикетов' },
+      { key: 'callsCount', label: 'Звонков' },
+      { key: 'averageResolutionTime', label: 'Среднее время решения' },
+    ],
+    [ReportType.CLIENTS]: [
+      { key: 'id', label: 'ID' },
+      { key: 'name', label: 'Имя' },
+      { key: 'phone', label: 'Телефон' },
+      { key: 'email', label: 'Email' },
+      { key: 'ticketsCount', label: 'Тикетов' },
+      { key: 'callsCount', label: 'Звонков' },
+      { key: 'createdAt', label: 'Дата создания' },
+    ],
+  };
+
+  const handleFieldToggle = (fieldKey: string) => {
+    setSelectedFields((prev) =>
+      prev.includes(fieldKey) ? prev.filter((f) => f !== fieldKey) : [...prev, fieldKey],
+    );
+  };
+
+  const handleSelectAllFields = () => {
+    const fields = availableFields[selectedReportType];
+    if (selectedFields.length === fields.length) {
+      setSelectedFields([]);
+    } else {
+      setSelectedFields(fields.map((f) => f.key));
+    }
+  };
 
   // Фильтры по датам
   const [startDate, setStartDate] = useState<string>(() => {
@@ -559,6 +618,97 @@ export const AnalyticsPage: React.FC = () => {
               </ResponsiveContainer>
             </Paper>
           </Grid>
+
+          {/* Графики по воронкам */}
+          {funnels.length > 0 && (
+            <Grid item xs={12}>
+              <Paper sx={{ p: 3, borderRadius: 3 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                  <Typography variant="h6" fontWeight={600}>
+                    Аналитика по воронкам
+                  </Typography>
+                  <FormControl size="small" sx={{ minWidth: 200 }}>
+                    <InputLabel>Выберите воронку</InputLabel>
+                    <Select
+                      value={selectedFunnel}
+                      onChange={(e) => handleFunnelChange(e.target.value)}
+                      label="Выберите воронку"
+                    >
+                      {funnels.map((funnel) => (
+                        <MenuItem key={funnel.id} value={funnel.id}>
+                          {funnel.name}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Box>
+                {funnelStats ? (
+                  <Grid container spacing={3}>
+                    <Grid item xs={12} md={6}>
+                      <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                        Распределение тикетов по этапам
+                      </Typography>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <PieChart>
+                          <Pie
+                            data={funnelStats.stages.map((stage) => ({
+                              name: stage.stageName,
+                              value: stage.ticketCount,
+                            }))}
+                            cx="50%"
+                            cy="50%"
+                            labelLine={false}
+                            label={({ name, value }) => `${name}: ${value}`}
+                            outerRadius={80}
+                            fill="#8884d8"
+                            dataKey="value"
+                          >
+                            {funnelStats.stages.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                        Статистика по этапам
+                      </Typography>
+                      <TableContainer>
+                        <Table size="small">
+                          <TableHead>
+                            <TableRow>
+                              <TableCell>Этап</TableCell>
+                              <TableCell align="right">Тикетов</TableCell>
+                              <TableCell align="right">Процент</TableCell>
+                            </TableRow>
+                          </TableHead>
+                          <TableBody>
+                            {funnelStats.stages.map((stage) => (
+                              <TableRow key={stage.stageId}>
+                                <TableCell>{stage.stageName}</TableCell>
+                                <TableCell align="right">{stage.ticketCount}</TableCell>
+                                <TableCell align="right">
+                                  {stage.percentage.toFixed(1)}%
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </TableContainer>
+                    </Grid>
+                  </Grid>
+                ) : (
+                  <Box sx={{ textAlign: 'center', py: 4 }}>
+                    <Typography variant="body2" color="text.secondary">
+                      Выберите воронку для просмотра статистики
+                    </Typography>
+                  </Box>
+                )}
+              </Paper>
+            </Grid>
+          )}
         </Grid>
 
         {/* Таблица закрытых тикетов */}
@@ -616,7 +766,10 @@ export const AnalyticsPage: React.FC = () => {
               <InputLabel>Тип отчёта</InputLabel>
               <Select
                 value={selectedReportType}
-                onChange={(e) => setSelectedReportType(e.target.value as ReportType)}
+                onChange={(e) => {
+                  setSelectedReportType(e.target.value as ReportType);
+                  setSelectedFields([]); // Сбрасываем выбранные поля при смене типа
+                }}
                 label="Тип отчёта"
                 disabled={exportLoading}
               >
@@ -645,6 +798,51 @@ export const AnalyticsPage: React.FC = () => {
             <Box>
               <Typography variant="body2" color="text.secondary" gutterBottom>
                 Период: {startDate} - {endDate}
+              </Typography>
+            </Box>
+
+            {/* Выбор полей для отчёта */}
+            <Box>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                <Typography variant="subtitle2" fontWeight={600}>
+                  Выберите поля для отчёта
+                </Typography>
+                <Button size="small" onClick={handleSelectAllFields} disabled={exportLoading}>
+                  {selectedFields.length === availableFields[selectedReportType].length
+                    ? 'Снять все'
+                    : 'Выбрать все'}
+                </Button>
+              </Box>
+              <Box
+                sx={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 1,
+                  maxHeight: 200,
+                  overflowY: 'auto',
+                  p: 1,
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  borderRadius: 1,
+                }}
+              >
+                {availableFields[selectedReportType].map((field) => (
+                  <FormControlLabel
+                    key={field.key}
+                    control={
+                      <Switch
+                        checked={selectedFields.includes(field.key)}
+                        onChange={() => handleFieldToggle(field.key)}
+                        size="small"
+                        disabled={exportLoading}
+                      />
+                    }
+                    label={field.label}
+                  />
+                ))}
+              </Box>
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                Если ничего не выбрано, будут включены все поля
               </Typography>
             </Box>
 

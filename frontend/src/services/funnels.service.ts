@@ -99,6 +99,7 @@ export interface FunnelStats {
     stageName: string;
     ticketCount: number;
     percentage: number;
+    averageTime?: number; // Опционально, если бэкенд добавит
   }[];
   totalTickets: number;
   conversionRate: number;

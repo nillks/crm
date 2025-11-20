@@ -25,6 +25,7 @@ import { WABAModule } from './waba/waba.module';
 import { ReportsModule } from './reports/reports.module';
 import { FunnelsModule } from './funnels/funnels.module';
 import { SupportLinesModule } from './support-lines/support-lines.module';
+import { ScheduledReportsModule } from './scheduled-reports/scheduled-reports.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { AllEntities } from './entities';
 import { TestPermissionsController } from './roles/test-permissions.controller';
@@ -99,6 +100,7 @@ import { TestPermissionsController } from './roles/test-permissions.controller';
     ReportsModule,
     FunnelsModule,
     SupportLinesModule,
+    ScheduledReportsModule,
   ],
   controllers: [AppController, HealthController, TestPermissionsController],
   providers: [

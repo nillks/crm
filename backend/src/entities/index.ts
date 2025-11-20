@@ -19,6 +19,7 @@ export * from './waba-credentials.entity';
 export * from './funnel.entity';
 export * from './funnel-stage.entity';
 export * from './support-line.entity';
+export * from './scheduled-report.entity';
 
 // Export entity classes only (for TypeORM)
 import { Role } from './role.entity';
@@ -41,6 +42,7 @@ import { WABACredentials } from './waba-credentials.entity';
 import { Funnel } from './funnel.entity';
 import { FunnelStage } from './funnel-stage.entity';
 import { SupportLine } from './support-line.entity';
+import { ScheduledReport } from './scheduled-report.entity';
 
 export const AllEntities = [
   Role,
@@ -63,4 +65,5 @@ export const AllEntities = [
   Funnel,
   FunnelStage,
   SupportLine,
+  ScheduledReport,
 ];

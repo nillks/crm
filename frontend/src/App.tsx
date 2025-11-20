@@ -19,6 +19,8 @@ import { AnalyticsPage } from './pages/analytics/AnalyticsPage';
 import { TasksPage } from './pages/tasks/TasksPage';
 import { TemplatesPage } from './pages/templates/TemplatesPage';
 import { WABAPage } from './pages/admin/WABAPage';
+import { SupportLinesPage } from './pages/admin/SupportLinesPage';
+import { ScheduledReportsPage } from './pages/admin/ScheduledReportsPage';
 
 // Компонент для редиректа авторизованных пользователей
 const PublicRoute = ({ children }: { children: ReactNode }) => {
@@ -151,6 +153,22 @@ function App() {
               element={
                 <ProtectedRoute>
                   <WABAPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/support-lines"
+              element={
+                <ProtectedRoute>
+                  <SupportLinesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/scheduled-reports"
+              element={
+                <ProtectedRoute>
+                  <ScheduledReportsPage />
                 </ProtectedRoute>
               }
             />
