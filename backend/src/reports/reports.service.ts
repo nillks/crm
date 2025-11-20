@@ -62,19 +62,19 @@ export class ReportsService {
 
     switch (dto.type) {
       case ReportType.TICKETS:
-        workbook = await this.generateTicketsReport(startDate, endDate);
+        workbook = await this.generateTicketsReport(startDate, endDate, dto.fields);
         fileName = `tickets_report_${Date.now()}.xlsx`;
         break;
       case ReportType.CALLS:
-        workbook = await this.generateCallsReport(startDate, endDate);
+        workbook = await this.generateCallsReport(startDate, endDate, dto.fields);
         fileName = `calls_report_${Date.now()}.xlsx`;
         break;
       case ReportType.OPERATORS:
-        workbook = await this.generateOperatorsReport(startDate, endDate);
+        workbook = await this.generateOperatorsReport(startDate, endDate, dto.fields);
         fileName = `operators_report_${Date.now()}.xlsx`;
         break;
       case ReportType.CLIENTS:
-        workbook = await this.generateClientsReport(startDate, endDate);
+        workbook = await this.generateClientsReport(startDate, endDate, dto.fields);
         fileName = `clients_report_${Date.now()}.xlsx`;
         break;
       default:
@@ -97,23 +97,40 @@ export class ReportsService {
   /**
    * Генерация отчёта по тикетам
    */
-  private async generateTicketsReport(startDate?: Date, endDate?: Date): Promise<ExcelJS.Workbook> {
+  private async generateTicketsReport(
+    startDate?: Date,
+    endDate?: Date,
+    selectedFields?: string[],
+  ): Promise<ExcelJS.Workbook> {
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Тикеты');
 
-    // Заголовки
-    worksheet.columns = [
-      { header: 'ID', key: 'id', width: 36 },
-      { header: 'Название', key: 'title', width: 30 },
-      { header: 'Клиент', key: 'client', width: 25 },
-      { header: 'Статус', key: 'status', width: 15 },
-      { header: 'Канал', key: 'channel', width: 15 },
-      { header: 'Приоритет', key: 'priority', width: 10 },
-      { header: 'Создан', key: 'createdBy', width: 20 },
-      { header: 'Назначен', key: 'assignedTo', width: 20 },
-      { header: 'Дата создания', key: 'createdAt', width: 20 },
-      { header: 'Дата закрытия', key: 'closedAt', width: 20 },
+    // Все доступные поля
+    const allFields = [
+      { key: 'id', header: 'ID', width: 36 },
+      { key: 'title', header: 'Название', width: 30 },
+      { key: 'description', header: 'Описание', width: 40 },
+      { key: 'status', header: 'Статус', width: 15 },
+      { key: 'category', header: 'Категория', width: 15 },
+      { key: 'priority', header: 'Приоритет', width: 10 },
+      { key: 'channel', header: 'Канал', width: 15 },
+      { key: 'clientName', header: 'Клиент', width: 25 },
+      { key: 'assignedTo', header: 'Ответственный', width: 20 },
+      { key: 'createdAt', header: 'Дата создания', width: 20 },
+      { key: 'closedAt', header: 'Дата закрытия', width: 20 },
     ];
+
+    // Фильтруем поля, если указаны выбранные
+    const fieldsToInclude = selectedFields && selectedFields.length > 0
+      ? allFields.filter((f) => selectedFields.includes(f.key))
+      : allFields;
+
+    // Заголовки
+    worksheet.columns = fieldsToInclude.map((f) => ({
+      header: f.header,
+      key: f.key,
+      width: f.width,
+    }));
 
     // Стилизация заголовков
     worksheet.getRow(1).font = { bold: true };

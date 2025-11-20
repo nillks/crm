@@ -7,11 +7,12 @@ import { Comment } from '../entities/comment.entity';
 import { TransferHistory } from '../entities/transfer-history.entity';
 import { User } from '../entities/user.entity';
 import { FunnelStage } from '../entities/funnel-stage.entity';
+import { SupportLine } from '../entities/support-line.entity';
 import { UsersModule } from '../users/users.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Ticket, Comment, TransferHistory, User, FunnelStage]),
+    TypeOrmModule.forFeature([Ticket, Comment, TransferHistory, User, FunnelStage, SupportLine]),
     UsersModule,
   ],
   controllers: [TicketsController],

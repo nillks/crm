@@ -9,6 +9,7 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  Query,
 } from '@nestjs/common';
 import { FunnelsService } from './funnels.service';
 import { CreateFunnelDto } from './dto/create-funnel.dto';
@@ -84,6 +85,18 @@ export class FunnelsController {
   @HttpCode(HttpStatus.NO_CONTENT)
   removeStage(@Param('id') id: string) {
     return this.funnelsService.removeStage(id);
+  }
+
+  @Get(':id/stats')
+  @Roles('admin', 'operator1', 'operator2', 'operator3')
+  getFunnelStats(
+    @Param('id') id: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    const start = startDate ? new Date(startDate) : undefined;
+    const end = endDate ? new Date(endDate) : undefined;
+    return this.funnelsService.getFunnelStats(id, start, end);
   }
 }
 

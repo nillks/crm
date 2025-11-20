@@ -95,6 +95,13 @@ export class Ticket {
   @JoinColumn({ name: 'funnelStageId' })
   funnelStage: FunnelStage;
 
+  @Column({ type: 'uuid', nullable: true })
+  supportLineId: string; // Линия поддержки, на которую назначен тикет
+
+  @ManyToOne(() => SupportLine, (line) => line.tickets, { nullable: true })
+  @JoinColumn({ name: 'supportLineId' })
+  supportLine: SupportLine;
+
   @Column({ type: 'int', default: 0 })
   priority: number; // 0-5, где 5 - наивысший приоритет
 

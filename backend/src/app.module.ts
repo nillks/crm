@@ -24,6 +24,7 @@ import { QuickRepliesModule } from './quick-replies/quick-replies.module';
 import { WABAModule } from './waba/waba.module';
 import { ReportsModule } from './reports/reports.module';
 import { FunnelsModule } from './funnels/funnels.module';
+import { SupportLinesModule } from './support-lines/support-lines.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { AllEntities } from './entities';
 import { TestPermissionsController } from './roles/test-permissions.controller';
@@ -97,6 +98,7 @@ import { TestPermissionsController } from './roles/test-permissions.controller';
     WABAModule,
     ReportsModule,
     FunnelsModule,
+    SupportLinesModule,
   ],
   controllers: [AppController, HealthController, TestPermissionsController],
   providers: [

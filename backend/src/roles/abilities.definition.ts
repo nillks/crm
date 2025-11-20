@@ -23,6 +23,7 @@ export enum Subject {
   AiSetting = 'AiSetting',
   Role = 'Role',
   Settings = 'Settings',
+  SupportLine = 'SupportLine',
 }
 
 export type AppAbility = PureAbility<[Action, Subject | string]>;
@@ -69,11 +70,15 @@ export function defineAbilityFor(role: RoleName): AppAbility {
       can(Action.Delete, Subject.Client);
       can(Action.Delete, Subject.Comment);
 
-      // - Не могут управлять пользователями, ролями, настройками AI
+      // - Читать линии поддержки
+      can(Action.Read, Subject.SupportLine);
+
+      // - Не могут управлять пользователями, ролями, настройками AI, линиями поддержки
       cannot(Action.Manage, Subject.User);
       cannot(Action.Manage, Subject.Role);
       cannot(Action.Manage, Subject.AiSetting);
       cannot(Action.Manage, Subject.Settings);
+      cannot(Action.Manage, Subject.SupportLine);
       break;
 
     default:

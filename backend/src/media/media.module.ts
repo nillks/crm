@@ -6,9 +6,10 @@ import { MediaFile } from '../entities/media-file.entity';
 import { Client } from '../entities/client.entity';
 import { Message } from '../entities/message.entity';
 import { Ticket } from '../entities/ticket.entity';
+import { CallLog } from '../entities/call-log.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([MediaFile, Client, Message, Ticket])],
+  imports: [TypeOrmModule.forFeature([MediaFile, Client, Message, Ticket, CallLog])],
   controllers: [MediaController],
   providers: [MediaService],
   exports: [MediaService],

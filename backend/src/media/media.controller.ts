@@ -109,5 +109,26 @@ export class MediaController {
   async getFilesByMessage(@Param('messageId') messageId: string) {
     return this.mediaService.getFilesByMessage(messageId);
   }
+
+  /**
+   * Получить список архивированных файлов
+   * GET /media/archive?page=1&limit=20
+   */
+  @Get('archive')
+  async getArchivedFiles(@Query('page') page?: string, @Query('limit') limit?: string) {
+    return this.mediaService.getArchivedFiles(
+      page ? parseInt(page, 10) : 1,
+      limit ? parseInt(limit, 10) : 20,
+    );
+  }
+
+  /**
+   * Восстановить файл из архива
+   * POST /media/archive/:id/restore
+   */
+  @Post('archive/:id/restore')
+  async restoreFromArchive(@Param('id') id: string) {
+    return this.mediaService.restoreFromArchive(id);
+  }
 }
 

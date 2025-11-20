@@ -1,4 +1,4 @@
-import { IsEnum, IsOptional, IsDateString, IsString } from 'class-validator';
+import { IsEnum, IsOptional, IsDateString, IsString, IsArray } from 'class-validator';
 
 export enum ReportType {
   TICKETS = 'tickets',
@@ -30,5 +30,10 @@ export class GenerateReportDto {
   @IsString()
   @IsOptional()
   telegramChatId?: string; // Для отправки отчёта в Telegram
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  fields?: string[]; // Выбранные поля для отчёта
 }
 

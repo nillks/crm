@@ -1076,6 +1076,28 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
         return;
       }
 
+      // Проверяем лимит входящих сообщений WhatsApp (3000/день)
+      const dailyLimit = 3000;
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date();
+      endOfDay.setHours(23, 59, 59, 999);
+
+      const dailyMessages = await this.messagesRepository.count({
+        where: {
+          channel: MessageChannel.WHATSAPP,
+          direction: MessageDirection.INBOUND,
+          createdAt: Between(startOfDay, endOfDay),
+        },
+      });
+
+      if (dailyMessages >= dailyLimit) {
+        this.logger.warn(
+          `⚠️ Достигнут дневной лимит входящих сообщений WhatsApp (${dailyLimit}). Сообщение не будет обработано.`,
+        );
+        return; // Прекращаем обработку сообщения
+      }
+
       // Находим или создаем тикет
       const ticket = await this.findOrCreateTicket(client);
 

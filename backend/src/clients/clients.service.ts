@@ -242,7 +242,58 @@ export class ClientsService {
       status: createClientDto.status || 'active',
     });
 
-    return this.clientsRepository.save(client);
+    const savedClient = await this.clientsRepository.save(client);
+
+    // Автоматическое заполнение полей через AI, если есть описание или сообщения
+    if (createClientDto.notes || createClientDto.description) {
+      await this.autoFillClientFields(savedClient, createClientDto.notes || createClientDto.description || '');
+    }
+
+    return savedClient;
+  }
+
+  /**
+   * Автоматическое заполнение полей клиента через AI
+   */
+  private async autoFillClientFields(client: Client, text: string): Promise<void> {
+    if (!text || text.length < 10) {
+      return; // Слишком короткий текст для анализа
+    }
+
+    try {
+      // Используем простой парсинг для извлечения данных
+      // В будущем можно использовать AI для более точного извлечения
+      const phoneRegex = /(\+?7|8)?[\s\-]?\(?(\d{3})\)?[\s\-]?(\d{3})[\s\-]?(\d{2})[\s\-]?(\d{2})/g;
+      const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+
+      // Извлекаем телефон
+      const phoneMatches = text.match(phoneRegex);
+      if (phoneMatches && phoneMatches.length > 0 && !client.phone) {
+        let phone = phoneMatches[0].replace(/[\s\-()]/g, '');
+        if (phone.startsWith('8')) {
+          phone = '7' + phone.substring(1);
+        }
+        if (!phone.startsWith('7') && phone.length >= 10) {
+          phone = '7' + phone;
+        }
+        client.phone = phone;
+      }
+
+      // Извлекаем email
+      const emailMatches = text.match(emailRegex);
+      if (emailMatches && emailMatches.length > 0 && !client.email) {
+        client.email = emailMatches[0];
+      }
+
+      // Сохраняем обновления
+      if (client.phone || client.email) {
+        await this.clientsRepository.save(client);
+        this.logger.log(`✅ Auto-filled client fields for ${client.id}: phone=${client.phone}, email=${client.email}`);
+      }
+    } catch (error) {
+      this.logger.error('Error auto-filling client fields:', error);
+      // Не прерываем выполнение, если автозаполнение не удалось
+    }
   }
 
   /**

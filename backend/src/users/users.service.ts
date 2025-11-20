@@ -37,6 +37,35 @@ export class UsersService {
       if (!role) {
         throw new NotFoundException(`Роль с ID ${userData.roleId} не найдена`);
       }
+
+      // Проверяем лимиты пользователей
+      if (role.name === RoleName.ADMIN) {
+        const adminCount = await this.usersRepository.count({
+          where: {
+            role: { name: RoleName.ADMIN },
+          },
+        });
+        const maxAdmins = 5;
+        if (adminCount >= maxAdmins) {
+          throw new BadRequestException(
+            `Достигнут лимит администраторов (${maxAdmins}). Невозможно создать нового администратора.`,
+          );
+        }
+      } else if ([RoleName.OPERATOR1, RoleName.OPERATOR2, RoleName.OPERATOR3].includes(role.name)) {
+        const operatorsCount = await this.usersRepository.count({
+          where: [
+            { role: { name: RoleName.OPERATOR1 } },
+            { role: { name: RoleName.OPERATOR2 } },
+            { role: { name: RoleName.OPERATOR3 } },
+          ],
+        });
+        const maxOperators = 32;
+        if (operatorsCount >= maxOperators) {
+          throw new BadRequestException(
+            `Достигнут лимит операторов (${maxOperators}). Невозможно создать нового оператора.`,
+          );
+        }
+      }
     } else {
       throw new BadRequestException('roleId обязателен для создания пользователя');
     }

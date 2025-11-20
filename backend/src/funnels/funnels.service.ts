@@ -1,8 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, Between, LessThanOrEqual, MoreThanOrEqual } from 'typeorm';
 import { Funnel } from '../entities/funnel.entity';
 import { FunnelStage } from '../entities/funnel-stage.entity';
+import { Ticket } from '../entities/ticket.entity';
 import { CreateFunnelDto } from './dto/create-funnel.dto';
 import { UpdateFunnelDto } from './dto/update-funnel.dto';
 import { CreateFunnelStageDto } from './dto/create-funnel-stage.dto';
@@ -15,6 +16,8 @@ export class FunnelsService {
     private funnelsRepository: Repository<Funnel>,
     @InjectRepository(FunnelStage)
     private stagesRepository: Repository<FunnelStage>,
+    @InjectRepository(Ticket)
+    private ticketsRepository: Repository<Ticket>,
   ) {}
 
   /**
@@ -157,6 +160,81 @@ export class FunnelsService {
     }
 
     return stage;
+  }
+
+  /**
+   * Получить статистику по воронке
+   */
+  async getFunnelStats(funnelId: string, startDate?: Date, endDate?: Date): Promise<{
+    funnelId: string;
+    funnelName: string;
+    stages: {
+      stageId: string;
+      stageName: string;
+      ticketCount: number;
+      percentage: number;
+    }[];
+    totalTickets: number;
+    conversionRate: number;
+  }> {
+    const funnel = await this.findOne(funnelId);
+    const stages = await this.findStagesByFunnel(funnelId);
+
+    // Подсчитываем тикеты по этапам
+    const stageStats = await Promise.all(
+      stages.map(async (stage) => {
+        const where: any = { funnelStageId: stage.id };
+        if (startDate && endDate) {
+          where.createdAt = Between(startDate, endDate);
+        } else if (startDate) {
+          where.createdAt = MoreThanOrEqual(startDate);
+        } else if (endDate) {
+          where.createdAt = LessThanOrEqual(endDate);
+        }
+
+        const ticketCount = await this.ticketsRepository.count({ where });
+        return {
+          stageId: stage.id,
+          stageName: stage.name,
+          ticketCount,
+          percentage: 0, // Будет вычислено ниже
+        };
+      }),
+    );
+
+    const totalTickets = stageStats.reduce((sum, stat) => sum + stat.ticketCount, 0);
+
+    // Вычисляем проценты
+    const stageStatsWithPercentages = stageStats.map((stat) => ({
+      ...stat,
+      percentage: totalTickets > 0 ? (stat.ticketCount / totalTickets) * 100 : 0,
+    }));
+
+    // Вычисляем конверсию (отношение финальных этапов к начальным)
+    const firstStage = stages.find((s) => s.order === Math.min(...stages.map((st) => st.order)));
+    const finalStages = stages.filter((s) => s.isFinal);
+    
+    const firstStageTickets = firstStage
+      ? await this.ticketsRepository.count({
+          where: { funnelStageId: firstStage.id },
+        })
+      : 0;
+    
+    const finalStageTickets = finalStages.length > 0
+      ? await this.ticketsRepository.count({
+          where: { funnelStageId: finalStages.map((s) => s.id) as any },
+        })
+      : 0;
+    
+    const conversionRate = firstStageTickets > 0 ? (finalStageTickets / firstStageTickets) * 100 : 0;
+
+    return {
+      funnelId: funnel.id,
+      funnelName: funnel.name,
+      stages: stageStatsWithPercentages,
+      totalTickets,
+      conversionRate,
+    };
   }
 }
 

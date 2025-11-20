@@ -15,6 +15,7 @@ import { Comment } from './comment.entity';
 import { Task } from './task.entity';
 import { TransferHistory } from './transfer-history.entity';
 import { Call } from './call.entity';
+import { SupportLine } from './support-line.entity';
 
 @Entity('users')
 @Index(['email'])
@@ -39,6 +40,13 @@ export class User {
   @ManyToOne(() => Role, (role) => role.users)
   @JoinColumn({ name: 'roleId' })
   role: Role;
+
+  @Column({ type: 'uuid', nullable: true })
+  supportLineId: string;
+
+  @ManyToOne(() => SupportLine, (line) => line.operators, { nullable: true })
+  @JoinColumn({ name: 'supportLineId' })
+  supportLine: SupportLine;
 
   @Column({ type: 'varchar', length: 20, nullable: true })
   phone: string;

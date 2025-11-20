@@ -5,12 +5,13 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, FindOptionsWhere, ILike } from 'typeorm';
+import { Repository, FindOptionsWhere, ILike, Not } from 'typeorm';
 import { Ticket, TicketStatus } from '../entities/ticket.entity';
 import { Comment } from '../entities/comment.entity';
 import { TransferHistory } from '../entities/transfer-history.entity';
 import { User } from '../entities/user.entity';
 import { FunnelStage } from '../entities/funnel-stage.entity';
+import { SupportLine } from '../entities/support-line.entity';
 import {
   CreateTicketDto,
   UpdateTicketDto,
@@ -41,6 +42,8 @@ export class TicketsService {
     private usersRepository: Repository<User>,
     @InjectRepository(FunnelStage)
     private funnelStagesRepository: Repository<FunnelStage>,
+    @InjectRepository(SupportLine)
+    private supportLinesRepository: Repository<SupportLine>,
   ) {}
 
   /**
@@ -177,12 +180,19 @@ export class TicketsService {
     if (include) {
       const includes = include.split(',');
       if (includes.includes('client')) relations.push('client');
-      if (includes.includes('createdBy')) relations.push('createdBy');
+      if (includes.includes('createdBy')) {
+        relations.push('createdBy');
+        relations.push('createdBy.supportLine');
+      }
       if (includes.includes('assignedTo')) relations.push('assignedTo');
       if (includes.includes('comments')) {
         relations.push('comments');
         relations.push('comments.user');
       }
+    } else {
+      // По умолчанию загружаем createdBy для autoAssignTicket
+      relations.push('createdBy');
+      relations.push('createdBy.supportLine');
     }
 
     const ticket = await this.ticketsRepository.findOne({
@@ -201,13 +211,165 @@ export class TicketsService {
    * Создать новый тикет
    */
   async create(createTicketDto: CreateTicketDto, user: User): Promise<Ticket> {
+    // Автоматическая классификация тикета, если категория не указана
+    let category = createTicketDto.category;
+    let priority = createTicketDto.priority || 0;
+
+    if (!category && createTicketDto.description) {
+      category = await this.classifyTicket(createTicketDto.description, createTicketDto.title);
+    }
+
+    // Автоматическое определение приоритета на основе категории и текста
+    if (!createTicketDto.priority && createTicketDto.description) {
+      priority = await this.determinePriority(createTicketDto.description, category);
+    }
+
     const ticket = this.ticketsRepository.create({
       ...createTicketDto,
+      category: category || createTicketDto.category,
+      priority,
       createdById: user.id,
       status: TicketStatus.NEW,
-      priority: createTicketDto.priority || 0,
       dueDate: createTicketDto.dueDate ? new Date(createTicketDto.dueDate) : null,
     });
+
+    const savedTicket = await this.ticketsRepository.save(ticket);
+
+    // Автоматическое распределение тикета, если не указан assignedToId
+    if (!savedTicket.assignedToId) {
+      await this.autoAssignTicket(savedTicket);
+    }
+
+    return savedTicket;
+  }
+
+  /**
+   * Автоматическая классификация тикета по тексту
+   */
+  private async classifyTicket(description: string, title?: string): Promise<string | undefined> {
+    const text = `${title || ''} ${description}`.toLowerCase();
+
+    // Простая классификация на основе ключевых слов
+    // В будущем можно использовать AI для более точной классификации
+    if (text.includes('жалоб') || text.includes('проблем') || text.includes('не работает')) {
+      return 'complaint';
+    }
+    if (text.includes('купить') || text.includes('цена') || text.includes('стоимость') || text.includes('заказ')) {
+      return 'sales';
+    }
+    if (text.includes('вопрос') || text.includes('как') || text.includes('что')) {
+      return 'question';
+    }
+    if (text.includes('запрос') || text.includes('нужно') || text.includes('требуется')) {
+      return 'request';
+    }
+    if (text.includes('техническ') || text.includes('ошибк') || text.includes('баг')) {
+      return 'technical';
+    }
+
+    return 'other';
+  }
+
+  /**
+   * Определение приоритета тикета
+   */
+  private async determinePriority(description: string, category?: string): Promise<number> {
+    const text = description.toLowerCase();
+
+    // Высокий приоритет (4-5)
+    if (text.includes('срочно') || text.includes('критично') || text.includes('не работает') || category === 'complaint') {
+      return 5;
+    }
+
+    // Средний приоритет (2-3)
+    if (text.includes('важно') || category === 'sales' || category === 'request') {
+      return 3;
+    }
+
+    // Низкий приоритет (0-1)
+    if (category === 'question' || category === 'other') {
+      return 1;
+    }
+
+    return 0;
+  }
+
+  /**
+   * Автоматическое распределение тикета на оператора
+   */
+  async autoAssignTicket(ticket: Ticket): Promise<Ticket> {
+    // Если тикет уже назначен, не делаем ничего
+    if (ticket.assignedToId) {
+      return ticket;
+    }
+
+    // Определяем линию поддержки на основе канала или категории
+    let targetLine: SupportLine | null = null;
+
+    // Если у пользователя есть линия, используем её
+    if (ticket.createdBy?.supportLineId) {
+      targetLine = await this.supportLinesRepository.findOne({
+        where: { id: ticket.createdBy.supportLineId },
+      });
+    }
+
+    // Если линия не найдена, выбираем по умолчанию на основе канала
+    if (!targetLine) {
+      // Можно настроить привязку каналов к линиям
+      // Пока используем первую активную линию
+      targetLine = await this.supportLinesRepository.findOne({
+        where: { isActive: true },
+        order: { code: 'ASC' },
+      });
+    }
+
+    if (!targetLine || !targetLine.settings?.autoAssign) {
+      return ticket;
+    }
+
+    // Получаем доступного оператора линии
+    const operators = await this.usersRepository.find({
+      where: {
+        supportLineId: targetLine.id,
+        status: 'active',
+      },
+      relations: ['role'],
+    });
+
+    if (operators.length === 0) {
+      return ticket;
+    }
+
+    // Round-robin: выбираем оператора с наименьшим количеством активных тикетов
+    let selectedOperator = operators[0];
+    let minTickets = Infinity;
+
+    for (const operator of operators) {
+      const activeTicketsCount = await this.ticketsRepository.count({
+        where: {
+          assignedToId: operator.id,
+          status: Not(TicketStatus.CLOSED),
+        },
+      });
+
+      if (activeTicketsCount < minTickets) {
+        minTickets = activeTicketsCount;
+        selectedOperator = operator;
+      }
+    }
+
+    ticket.assignedToId = selectedOperator.id;
+    ticket.supportLineId = targetLine.id;
+
+    // Создаем комментарий о автоматическом назначении
+    await this.commentsRepository.save(
+      this.commentsRepository.create({
+        ticketId: ticket.id,
+        userId: ticket.createdById,
+        content: `Тикет автоматически назначен на оператора ${selectedOperator.name} (${targetLine.name})`,
+        isInternal: true,
+      }),
+    );
 
     return this.ticketsRepository.save(ticket);
   }

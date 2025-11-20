@@ -44,6 +44,27 @@ export class FunnelStage {
   @Column({ type: 'boolean', default: true })
   isActive: boolean; // Активен ли этап
 
+  @Column({ type: 'uuid', nullable: true })
+  nextStageId: string; // ID следующего этапа для автоматического перехода
+
+  @ManyToOne(() => FunnelStage, { nullable: true })
+  @JoinColumn({ name: 'nextStageId' })
+  nextStage: FunnelStage;
+
+  @Column({ type: 'jsonb', nullable: true })
+  autoTransitionRules: {
+    // Правила автоматического перехода
+    onStatusChange?: string[]; // Переход при изменении статуса
+    onTimeElapsed?: number; // Переход через N часов
+    onAction?: string[]; // Переход при выполнении действия
+    conditions?: {
+      // Условия для перехода
+      minComments?: number;
+      minMessages?: number;
+      requiredStatus?: string;
+    };
+  };
+
   @CreateDateColumn()
   createdAt: Date;
 

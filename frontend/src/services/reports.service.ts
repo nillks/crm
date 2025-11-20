@@ -18,6 +18,7 @@ export interface GenerateReportDto {
   startDate?: string;
   endDate?: string;
   telegramChatId?: string;
+  fields?: string[]; // Выбранные поля для отчёта
 }
 
 export interface GenerateReportResponse {

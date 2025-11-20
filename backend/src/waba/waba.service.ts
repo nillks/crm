@@ -238,6 +238,23 @@ export class WABAService implements OnModuleInit {
    * Создать шаблон
    */
   async createTemplate(dto: CreateWABATemplateDto): Promise<WABATemplate> {
+    // Проверяем лимит шаблонов (200/месяц)
+    const monthlyLimit = 200;
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+
+    const monthlyTemplates = await this.templatesRepository
+      .createQueryBuilder('template')
+      .where('template.createdAt >= :startOfMonth', { startOfMonth })
+      .getCount();
+
+    if (monthlyTemplates >= monthlyLimit) {
+      throw new BadRequestException(
+        `Достигнут месячный лимит шаблонов (${monthlyLimit}). Невозможно создать новый шаблон.`,
+      );
+    }
+
     // Проверяем уникальность имени
     const existing = await this.templatesRepository.findOne({ where: { name: dto.name } });
     if (existing) {

@@ -58,9 +58,64 @@ import {
 import { analyticsService, SLAMetrics, KPIMetrics, ChannelAnalytics } from '../../services/analytics.service';
 import { ticketsService } from '../../services/tickets.service';
 import { reportsService, ReportType, ReportFormat } from '../../services/reports.service';
+import { funnelsService, Funnel, FunnelStats } from '../../services/funnels.service';
 import { getErrorMessage } from '../../utils/errorMessages';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
+
+// Функция для получения доступных полей в зависимости от типа отчёта
+const getAvailableFields = (reportType: ReportType): { value: string; label: string }[] => {
+  switch (reportType) {
+    case ReportType.TICKETS:
+      return [
+        { value: 'id', label: 'ID тикета' },
+        { value: 'title', label: 'Название' },
+        { value: 'description', label: 'Описание' },
+        { value: 'status', label: 'Статус' },
+        { value: 'category', label: 'Категория' },
+        { value: 'priority', label: 'Приоритет' },
+        { value: 'channel', label: 'Канал' },
+        { value: 'clientName', label: 'Клиент' },
+        { value: 'assignedTo', label: 'Ответственный' },
+        { value: 'createdAt', label: 'Дата создания' },
+        { value: 'closedAt', label: 'Дата закрытия' },
+      ];
+    case ReportType.CALLS:
+      return [
+        { value: 'id', label: 'ID звонка' },
+        { value: 'type', label: 'Тип (входящий/исходящий)' },
+        { value: 'status', label: 'Статус' },
+        { value: 'phoneNumber', label: 'Номер телефона' },
+        { value: 'clientName', label: 'Клиент' },
+        { value: 'operator', label: 'Оператор' },
+        { value: 'duration', label: 'Длительность' },
+        { value: 'startedAt', label: 'Время начала' },
+      ];
+    case ReportType.OPERATORS:
+      return [
+        { value: 'name', label: 'Имя оператора' },
+        { value: 'email', label: 'Email' },
+        { value: 'role', label: 'Роль' },
+        { value: 'ticketsCreated', label: 'Создано тикетов' },
+        { value: 'ticketsClosed', label: 'Закрыто тикетов' },
+        { value: 'averageResolutionTime', label: 'Среднее время решения' },
+        { value: 'messagesSent', label: 'Отправлено сообщений' },
+      ];
+    case ReportType.CLIENTS:
+      return [
+        { value: 'id', label: 'ID клиента' },
+        { value: 'name', label: 'Имя' },
+        { value: 'phone', label: 'Телефон' },
+        { value: 'email', label: 'Email' },
+        { value: 'status', label: 'Статус' },
+        { value: 'tags', label: 'Теги' },
+        { value: 'createdAt', label: 'Дата создания' },
+        { value: 'ticketsCount', label: 'Количество тикетов' },
+      ];
+    default:
+      return [];
+  }
+};
 
 export const AnalyticsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -70,7 +125,11 @@ export const AnalyticsPage: React.FC = () => {
   const [kpiMetrics, setKpiMetrics] = useState<KPIMetrics | null>(null);
   const [channelAnalytics, setChannelAnalytics] = useState<ChannelAnalytics | null>(null);
   const [closedTickets, setClosedTickets] = useState<any[]>([]);
+  const [funnels, setFunnels] = useState<Funnel[]>([]);
+  const [selectedFunnel, setSelectedFunnel] = useState<string>('');
+  const [funnelStats, setFunnelStats] = useState<FunnelStats | null>(null);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [selectedFields, setSelectedFields] = useState<string[]>([]);
   const [exportLoading, setExportLoading] = useState(false);
   const [exportStatus, setExportStatus] = useState<string | null>(null);
   const [selectedReportType, setSelectedReportType] = useState<ReportType>(ReportType.TICKETS);
@@ -91,7 +150,7 @@ export const AnalyticsPage: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      const [sla, kpi, channels, tickets] = await Promise.all([
+      const [sla, kpi, channels, tickets, funnelsData] = await Promise.all([
         analyticsService.getSLA(startDate, endDate),
         analyticsService.getKPI(startDate, endDate),
         analyticsService.getChannelAnalytics(startDate, endDate),
@@ -102,12 +161,22 @@ export const AnalyticsPage: React.FC = () => {
           sortOrder: 'DESC',
           include: 'client,assignedTo',
         }),
+        funnelsService.findActive(),
       ]);
 
       setSlaMetrics(sla);
       setKpiMetrics(kpi);
       setChannelAnalytics(channels);
       setClosedTickets(tickets.data || []);
+      setFunnels(funnelsData);
+      
+      // Загружаем статистику первой воронки, если есть
+      if (funnelsData.length > 0 && !selectedFunnel) {
+        setSelectedFunnel(funnelsData[0].id);
+        loadFunnelStats(funnelsData[0].id);
+      } else if (selectedFunnel) {
+        loadFunnelStats(selectedFunnel);
+      }
     } catch (err: any) {
       setError(getErrorMessage(err));
     } finally {
@@ -124,6 +193,20 @@ export const AnalyticsPage: React.FC = () => {
     loadData();
   };
 
+  const loadFunnelStats = async (funnelId: string) => {
+    try {
+      const stats = await funnelsService.getFunnelStats(funnelId, startDate, endDate);
+      setFunnelStats(stats);
+    } catch (err: any) {
+      console.error('Failed to load funnel stats:', err);
+    }
+  };
+
+  const handleFunnelChange = (funnelId: string) => {
+    setSelectedFunnel(funnelId);
+    loadFunnelStats(funnelId);
+  };
+
   const handleExport = () => {
     setExportDialogOpen(true);
   };
@@ -138,6 +221,7 @@ export const AnalyticsPage: React.FC = () => {
         format: selectedFormat,
         startDate,
         endDate,
+        fields: selectedFields.length > 0 ? selectedFields : undefined,
       });
 
       setExportStatus('Отчёт готов! Скачивание...');

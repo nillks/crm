@@ -39,6 +39,8 @@ export class MediaService implements OnModuleInit {
     private messagesRepository: Repository<Message>,
     @InjectRepository(Ticket)
     private ticketsRepository: Repository<Ticket>,
+    @InjectRepository(CallLog)
+    private callLogsRepository: Repository<CallLog>,
   ) {
     this.uploadDir = this.configService.get('MEDIA_UPLOAD_DIR', path.join(process.cwd(), 'uploads'));
   }
@@ -374,6 +376,88 @@ export class MediaService implements OnModuleInit {
     }
 
     this.logger.log(`✅ Archived ${archivedCount} files`);
+  }
+
+  /**
+   * Получить список архивированных файлов
+   */
+  async getArchivedFiles(page: number = 1, limit: number = 20): Promise<{
+    data: MediaFile[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> {
+    const skip = (page - 1) * limit;
+
+    const [data, total] = await this.mediaFileRepository.findAndCount({
+      where: {
+        metadata: {
+          archived: true,
+        } as any,
+      },
+      order: { createdAt: 'DESC' },
+      skip,
+      take: limit,
+    });
+
+    return {
+      data,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  /**
+   * Восстановить файл из архива
+   */
+  async restoreFromArchive(fileId: string): Promise<MediaFile> {
+    const file = await this.mediaFileRepository.findOne({
+      where: { id: fileId },
+    });
+
+    if (!file) {
+      throw new NotFoundException(`Файл с ID ${fileId} не найден`);
+    }
+
+    const metadata = file.metadata || {};
+    if (!metadata.archived || !metadata.archivePath) {
+      throw new BadRequestException('Файл не находится в архиве');
+    }
+
+    const archivePath = metadata.archivePath;
+    const originalPath = await this.getFilePath(file.id);
+
+    // Проверяем, существует ли файл в архиве
+    if (!fs.existsSync(archivePath)) {
+      throw new NotFoundException('Файл не найден в архиве');
+    }
+
+    // Восстанавливаем файл из архива
+    try {
+      // Создаем директорию для восстановленного файла, если её нет
+      const originalDir = path.dirname(originalPath);
+      await mkdir(originalDir, { recursive: true });
+
+      // Копируем файл обратно
+      fs.copyFileSync(archivePath, originalPath);
+
+      // Обновляем метаданные
+      metadata.archived = false;
+      metadata.restoredAt = new Date().toISOString();
+      metadata.restoredFrom = archivePath;
+
+      await this.mediaFileRepository.update(fileId, { metadata });
+
+      this.logger.log(`✅ File restored from archive: ${fileId}`);
+
+      return this.mediaFileRepository.findOne({ where: { id: fileId } });
+    } catch (error) {
+      this.logger.error(`Failed to restore file ${fileId}:`, error);
+      throw new BadRequestException(`Не удалось восстановить файл: ${error.message}`);
+    }
   }
 
   /**
