@@ -23,10 +23,10 @@ import { TasksModule } from './tasks/tasks.module';
 import { QuickRepliesModule } from './quick-replies/quick-replies.module';
 import { WABAModule } from './waba/waba.module';
 import { ReportsModule } from './reports/reports.module';
-import { FunnelsModule } from './funnels/funnels.module';
-import { SupportLinesModule } from './support-lines/support-lines.module';
-import { ScheduledReportsModule } from './scheduled-reports/scheduled-reports.module';
-import { NotificationsModule } from './notifications/notifications.module';
+// import { FunnelsModule } from './funnels/funnels.module'; // TODO: Создать модуль
+// import { SupportLinesModule } from './support-lines/support-lines.module'; // TODO: Создать модуль
+// import { ScheduledReportsModule } from './scheduled-reports/scheduled-reports.module'; // TODO: Создать модуль
+// import { NotificationsModule } from './notifications/notifications.module'; // TODO: Создать модуль
 import { WebhooksModule } from './webhooks/webhooks.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { AllEntities } from './entities';
@@ -100,10 +100,10 @@ import { TestPermissionsController } from './roles/test-permissions.controller';
     QuickRepliesModule,
     WABAModule,
     ReportsModule,
-    FunnelsModule,
-    SupportLinesModule,
-    ScheduledReportsModule,
-    NotificationsModule,
+    // FunnelsModule, // TODO: Создать модуль
+    // SupportLinesModule, // TODO: Создать модуль
+    // ScheduledReportsModule, // TODO: Создать модуль
+    // NotificationsModule, // TODO: Создать модуль
     WebhooksModule,
   ],
   controllers: [AppController, HealthController, TestPermissionsController],

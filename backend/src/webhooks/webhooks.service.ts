@@ -3,7 +3,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Ticket, TicketChannel, TicketStatus } from '../entities/ticket.entity';
 import { Client } from '../entities/client.entity';
-import { User, RoleName } from '../entities/user.entity';
+import { User } from '../entities/user.entity';
+import { RoleName } from '../entities/role.entity';
 import { TicketsService } from '../tickets/tickets.service';
 import { ClientsService } from '../clients/clients.service';
 
@@ -126,17 +127,25 @@ export class WebhooksService {
       channel: TicketChannel.WEBSITE,
       status: TicketStatus.NEW,
       priority: 0,
-      metadata: {
-        source: data.source || 'website',
-        utmSource: data.utmSource,
-        utmMedium: data.utmMedium,
-        utmCampaign: data.utmCampaign,
-        formData: data,
-      },
     });
 
     const savedTicket = await this.ticketsRepository.save(ticket);
     this.logger.log(`✅ Created ticket from contact form: ${savedTicket.id}`);
+    
+    // Сохраняем метаданные в description, если нужно
+    if (data.source || data.utmSource || data.utmMedium || data.utmCampaign) {
+      const metadataInfo = [
+        data.source ? `Источник: ${data.source}` : '',
+        data.utmSource ? `UTM Source: ${data.utmSource}` : '',
+        data.utmMedium ? `UTM Medium: ${data.utmMedium}` : '',
+        data.utmCampaign ? `UTM Campaign: ${data.utmCampaign}` : '',
+      ].filter(Boolean).join('\n');
+      
+      if (metadataInfo) {
+        savedTicket.description = `${savedTicket.description}\n\n---\n${metadataInfo}`;
+        await this.ticketsRepository.save(savedTicket);
+      }
+    }
 
     // Автоматическое распределение тикета
     try {
