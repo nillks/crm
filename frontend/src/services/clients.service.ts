@@ -61,6 +61,20 @@ export interface Task {
   createdAt: string;
 }
 
+export interface ClientComment {
+  id: string;
+  content: string;
+  clientId: string;
+  userId: string;
+  user?: {
+    id: string;
+    name: string;
+    email: string;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface CreateClientDto {
   name: string;
   phone?: string;

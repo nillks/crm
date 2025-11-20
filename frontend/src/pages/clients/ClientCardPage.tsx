@@ -41,15 +41,18 @@ import {
   Task,
   SmartToy,
   Add,
+  Comment,
+  Delete,
+  Restore,
 } from '@mui/icons-material';
 import { clientsService } from '../../services/clients.service';
-import type { Client } from '../../services/clients.service';
+import type { Client, ClientComment } from '../../services/clients.service';
 import { aiService } from '../../services/ai.service';
 import type { AiLog, AiSetting } from '../../services/ai.service';
 import { getErrorMessage } from '../../utils/errorMessages';
 import { FileUpload } from '../../components/FileUpload';
 import { FileList } from '../../components/FileList';
-import { MediaFile } from '../../services/media.service';
+import { MediaFile, mediaService } from '../../services/media.service';
 import { TasksList } from '../../components/TasksList';
 
 interface TabPanelProps {
@@ -74,6 +77,138 @@ function TabPanel(props: TabPanelProps) {
   );
 }
 
+interface ArchivedFilesListProps {
+  clientId: string;
+}
+
+const ArchivedFilesList: React.FC<ArchivedFilesListProps> = ({ clientId }) => {
+  const [files, setFiles] = useState<MediaFile[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const limit = 20;
+
+  useEffect(() => {
+    loadArchivedFiles();
+  }, [page, clientId]);
+
+  const loadArchivedFiles = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const result = await mediaService.getArchivedFiles(page, limit);
+      // Фильтруем файлы по clientId
+      const clientFiles = result.files.filter((f) => f.clientId === clientId);
+      setFiles(clientFiles);
+      setTotal(result.total);
+    } catch (err: any) {
+      setError(getErrorMessage(err));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRestore = async (fileId: string) => {
+    if (!window.confirm('Вы уверены, что хотите восстановить этот файл из архива?')) {
+      return;
+    }
+
+    try {
+      await mediaService.restoreFromArchive(fileId);
+      setFiles((prev) => prev.filter((f) => f.id !== fileId));
+      alert('Файл успешно восстановлен из архива');
+    } catch (err: any) {
+      setError(getErrorMessage(err));
+    }
+  };
+
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Alert severity="error" sx={{ mb: 2 }}>
+        {error}
+      </Alert>
+    );
+  }
+
+  if (files.length === 0) {
+    return (
+      <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 4 }}>
+        Нет архивированных файлов
+      </Typography>
+    );
+  }
+
+  return (
+    <Box>
+      <TableContainer component={Paper} variant="outlined">
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>Имя файла</TableCell>
+              <TableCell>Тип</TableCell>
+              <TableCell>Размер</TableCell>
+              <TableCell>Дата архивации</TableCell>
+              <TableCell>Действия</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {files.map((file) => (
+              <TableRow key={file.id}>
+                <TableCell>{file.fileName}</TableCell>
+                <TableCell>
+                  <Chip label={file.type} size="small" />
+                </TableCell>
+                <TableCell>
+                  {file.size < 1024
+                    ? `${file.size} B`
+                    : file.size < 1024 * 1024
+                      ? `${(file.size / 1024).toFixed(1)} KB`
+                      : `${(file.size / (1024 * 1024)).toFixed(1)} MB`}
+                </TableCell>
+                <TableCell>
+                  {file.metadata?.archivedAt
+                    ? new Date(file.metadata.archivedAt).toLocaleString('ru-RU')
+                    : '-'}
+                </TableCell>
+                <TableCell>
+                  <IconButton
+                    size="small"
+                    onClick={() => handleRestore(file.id)}
+                    color="primary"
+                    title="Восстановить из архива"
+                  >
+                    <Restore />
+                  </IconButton>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+      {total > limit && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+          <Button
+            onClick={() => setPage((p) => p + 1)}
+            disabled={page * limit >= total}
+            variant="outlined"
+          >
+            Загрузить еще
+          </Button>
+        </Box>
+      )}
+    </Box>
+  );
+};
+
 export const ClientCardPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -91,6 +226,11 @@ export const ClientCardPage: React.FC = () => {
   const [aiLogs, setAiLogs] = useState<AiLog[]>([]);
   const [aiLogsLoading, setAiLogsLoading] = useState(false);
   const [aiSetting, setAiSetting] = useState<AiSetting | null>(null);
+  const [comments, setComments] = useState<ClientComment[]>([]);
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [newComment, setNewComment] = useState('');
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editCommentText, setEditCommentText] = useState('');
 
   useEffect(() => {
     if (id && id !== 'new') {
@@ -139,10 +279,60 @@ export const ClientCardPage: React.FC = () => {
       if (tabValue === 5) {
         await loadAIData();
       }
+      // Загружаем комментарии, если переключились на вкладку комментариев
+      if (tabValue === 6) {
+        await loadComments();
+      }
     } catch (err: any) {
       setError(getErrorMessage(err));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadComments = async () => {
+    if (!id || id === 'new') return;
+    try {
+      setCommentsLoading(true);
+      const data = await clientsService.getClientComments(id);
+      setComments(data);
+    } catch (err) {
+      console.error('Failed to load comments:', err);
+    } finally {
+      setCommentsLoading(false);
+    }
+  };
+
+  const handleCreateComment = async () => {
+    if (!id || !newComment.trim()) return;
+    try {
+      const comment = await clientsService.createClientComment(id, newComment);
+      setComments([comment, ...comments]);
+      setNewComment('');
+    } catch (err: any) {
+      setError(getErrorMessage(err));
+    }
+  };
+
+  const handleUpdateComment = async (commentId: string) => {
+    if (!id || !editCommentText.trim()) return;
+    try {
+      const updated = await clientsService.updateClientComment(id, commentId, editCommentText);
+      setComments(comments.map(c => c.id === commentId ? updated : c));
+      setEditingCommentId(null);
+      setEditCommentText('');
+    } catch (err: any) {
+      setError(getErrorMessage(err));
+    }
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    if (!id || !window.confirm('Вы уверены, что хотите удалить этот комментарий?')) return;
+    try {
+      await clientsService.deleteClientComment(id, commentId);
+      setComments(comments.filter(c => c.id !== commentId));
+    } catch (err: any) {
+      setError(getErrorMessage(err));
     }
   };
 
@@ -167,6 +357,9 @@ export const ClientCardPage: React.FC = () => {
   useEffect(() => {
     if (tabValue === 5 && id && id !== 'new') {
       loadAIData();
+    }
+    if (tabValue === 6 && id && id !== 'new') {
+      loadComments();
     }
   }, [tabValue, id]);
 
@@ -596,6 +789,8 @@ export const ClientCardPage: React.FC = () => {
                 <Tab icon={<AttachFile />} iconPosition="start" label="Файлы" />
                 <Tab icon={<Task />} iconPosition="start" label="Задачи" />
                 <Tab icon={<SmartToy />} iconPosition="start" label="AI История" />
+                <Tab icon={<Comment />} iconPosition="start" label="Комментарии" />
+                <Tab icon={<History />} iconPosition="start" label="Архив" />
               </Tabs>
             </Box>
 
@@ -938,6 +1133,129 @@ export const ClientCardPage: React.FC = () => {
                     </Typography>
                   )}
                 </>
+              )}
+            </TabPanel>
+
+            <TabPanel value={tabValue} index={6}>
+              <Typography variant="h6" gutterBottom>
+                Комментарии к клиенту
+              </Typography>
+              
+              {/* Форма создания комментария */}
+              <Box sx={{ mb: 3 }}>
+                <TextField
+                  fullWidth
+                  multiline
+                  rows={3}
+                  label="Новый комментарий"
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  placeholder="Введите комментарий..."
+                  sx={{ mb: 2 }}
+                />
+                <Button
+                  variant="contained"
+                  startIcon={<Add />}
+                  onClick={handleCreateComment}
+                  disabled={!newComment.trim()}
+                >
+                  Добавить комментарий
+                </Button>
+              </Box>
+
+              {/* Список комментариев */}
+              {commentsLoading ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                  <CircularProgress />
+                </Box>
+              ) : comments.length === 0 ? (
+                <Typography variant="body1" color="text.secondary" align="center" sx={{ py: 4 }}>
+                  Комментариев пока нет
+                </Typography>
+              ) : (
+                <Stack spacing={2}>
+                  {comments.map((comment) => (
+                    <Card key={comment.id} variant="outlined">
+                      <CardContent>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', mb: 1 }}>
+                          <Box>
+                            <Typography variant="subtitle2" fontWeight={600}>
+                              {comment.user?.name || 'Неизвестный пользователь'}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {new Date(comment.createdAt).toLocaleString('ru-RU')}
+                            </Typography>
+                          </Box>
+                          <Box>
+                            {editingCommentId === comment.id ? (
+                              <>
+                                <IconButton
+                                  size="small"
+                                  onClick={() => handleUpdateComment(comment.id)}
+                                  color="primary"
+                                >
+                                  <Save />
+                                </IconButton>
+                                <IconButton
+                                  size="small"
+                                  onClick={() => {
+                                    setEditingCommentId(null);
+                                    setEditCommentText('');
+                                  }}
+                                >
+                                  <Cancel />
+                                </IconButton>
+                              </>
+                            ) : (
+                              <>
+                                <IconButton
+                                  size="small"
+                                  onClick={() => {
+                                    setEditingCommentId(comment.id);
+                                    setEditCommentText(comment.content);
+                                  }}
+                                  color="primary"
+                                >
+                                  <Edit />
+                                </IconButton>
+                                <IconButton
+                                  size="small"
+                                  onClick={() => handleDeleteComment(comment.id)}
+                                  color="error"
+                                >
+                                  <Delete />
+                                </IconButton>
+                              </>
+                            )}
+                          </Box>
+                        </Box>
+                        {editingCommentId === comment.id ? (
+                          <TextField
+                            fullWidth
+                            multiline
+                            rows={2}
+                            value={editCommentText}
+                            onChange={(e) => setEditCommentText(e.target.value)}
+                            sx={{ mt: 1 }}
+                          />
+                        ) : (
+                          <Typography variant="body1" sx={{ mt: 1, whiteSpace: 'pre-wrap' }}>
+                            {comment.content}
+                          </Typography>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))}
+                </Stack>
+              )}
+            </TabPanel>
+
+            <TabPanel value={tabValue} index={7}>
+              <Typography variant="h6" gutterBottom>
+                Архив файлов
+              </Typography>
+              {client && (
+                <ArchivedFilesList clientId={client.id} />
               )}
             </TabPanel>
           </Card>

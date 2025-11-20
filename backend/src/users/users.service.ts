@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, ILike } from 'typeorm';
+import * as bcrypt from 'bcrypt';
 import { User } from '../entities/user.entity';
 import { Role, RoleName } from '../entities/role.entity';
 
@@ -126,5 +127,87 @@ export class UsersService {
       ],
       relations: ['role'],
     });
+  }
+
+  /**
+   * Обновить профиль пользователя
+   */
+  async updateProfile(userId: string, updateData: { name?: string; phone?: string; email?: string }): Promise<User> {
+    const user = await this.findById(userId);
+    if (!user) {
+      throw new NotFoundException('Пользователь не найден');
+    }
+
+    // Проверяем, не занят ли email другим пользователем
+    if (updateData.email && updateData.email !== user.email) {
+      const existingUser = await this.findByEmail(updateData.email);
+      if (existingUser) {
+        throw new BadRequestException('Пользователь с таким email уже существует');
+      }
+    }
+
+    // Обновляем данные
+    if (updateData.name) user.name = updateData.name;
+    if (updateData.phone !== undefined) user.phone = updateData.phone;
+    if (updateData.email) user.email = updateData.email;
+
+    await this.usersRepository.save(user);
+    return this.findById(userId);
+  }
+
+  /**
+   * Изменить пароль пользователя
+   */
+  async changePassword(userId: string, oldPassword: string, newPassword: string): Promise<void> {
+    const user = await this.findById(userId);
+    if (!user) {
+      throw new NotFoundException('Пользователь не найден');
+    }
+
+    // Проверяем старый пароль
+    const isOldPasswordValid = await bcrypt.compare(oldPassword, user.password);
+    if (!isOldPasswordValid) {
+      throw new BadRequestException('Неверный текущий пароль');
+    }
+
+    // Хешируем новый пароль
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await this.usersRepository.update(userId, { password: hashedPassword });
+  }
+
+  /**
+   * Получить статистику лимитов пользователей
+   */
+  async getUsersLimits(): Promise<{
+    operators: { used: number; limit: number; percentage: number };
+    admins: { used: number; limit: number; percentage: number };
+  }> {
+    const operatorsCount = await this.usersRepository.count({
+      where: [
+        { role: { name: RoleName.OPERATOR1 } },
+        { role: { name: RoleName.OPERATOR2 } },
+        { role: { name: RoleName.OPERATOR3 } },
+      ],
+    });
+
+    const adminsCount = await this.usersRepository.count({
+      where: { role: { name: RoleName.ADMIN } },
+    });
+
+    const maxOperators = 32;
+    const maxAdmins = 5;
+
+    return {
+      operators: {
+        used: operatorsCount,
+        limit: maxOperators,
+        percentage: (operatorsCount / maxOperators) * 100,
+      },
+      admins: {
+        used: adminsCount,
+        limit: maxAdmins,
+        percentage: (adminsCount / maxAdmins) * 100,
+      },
+    };
   }
 }

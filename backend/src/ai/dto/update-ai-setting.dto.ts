@@ -1,6 +1,29 @@
-import { IsBoolean, IsOptional, IsString, IsNumber, Min, Max, IsEnum, IsUUID } from 'class-validator';
+import { IsBoolean, IsOptional, IsString, IsNumber, Min, Max, IsEnum, IsUUID, IsObject, IsArray, ValidateNested } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 import { AiProvider } from '../../entities/ai-setting.entity';
+
+class WorkingHoursDto {
+  @IsBoolean()
+  @IsOptional()
+  enabled?: boolean;
+
+  @IsString()
+  @IsOptional()
+  timezone?: string;
+
+  @IsArray()
+  @IsNumber({}, { each: true })
+  @IsOptional()
+  weekdays?: number[];
+
+  @IsString()
+  @IsOptional()
+  startTime?: string;
+
+  @IsString()
+  @IsOptional()
+  endTime?: string;
+}
 
 export class UpdateAiSettingDto {
   @IsUUID()
@@ -50,5 +73,11 @@ export class UpdateAiSettingDto {
     return isNaN(num) ? undefined : num;
   })
   maxTokens?: number;
+
+  @IsObject()
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => WorkingHoursDto)
+  workingHours?: WorkingHoursDto;
 }
 

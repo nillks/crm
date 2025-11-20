@@ -54,6 +54,7 @@ import {
   UpdateWABATemplateDto,
   CreateWABACampaignDto,
   CreateWABACredentialsDto,
+  CreateMassWABACampaignDto,
   AITokenStats,
 } from '../../services/waba.service';
 import { clientsService } from '../../services/clients.service';
@@ -106,6 +107,13 @@ export const WABAPage: React.FC = () => {
     templateId: '',
     clientId: '',
     parameters: {},
+  });
+
+  const [massCampaignFormData, setMassCampaignFormData] = useState<CreateMassWABACampaignDto>({
+    templateId: '',
+    clientFilters: {},
+    parameters: {},
+    limit: undefined,
   });
 
   const [credentialsFormData, setCredentialsFormData] = useState<CreateWABACredentialsDto>({
@@ -436,6 +444,7 @@ export const WABAPage: React.FC = () => {
           <Tabs value={tabValue} onChange={(e, v) => setTabValue(v)}>
             <Tab icon={<Edit />} iconPosition="start" label="Шаблоны" />
             <Tab icon={<History />} iconPosition="start" label="История рассылок" />
+            <Tab icon={<Send />} iconPosition="start" label="Массовая рассылка" />
           </Tabs>
 
           <TabPanel value={tabValue} index={0}>
@@ -575,6 +584,172 @@ export const WABAPage: React.FC = () => {
                 </Table>
               </TableContainer>
             )}
+          </TabPanel>
+
+          <TabPanel value={tabValue} index={2}>
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="h6" gutterBottom>
+                Массовая рассылка
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                Создайте массовую рассылку для клиентов, отфильтрованных по тегам, статусу или другим критериям.
+              </Typography>
+            </Box>
+
+            <Paper sx={{ p: 3, mb: 3 }}>
+              <Typography variant="h6" gutterBottom>
+                Фильтры клиентов
+              </Typography>
+              <Grid container spacing={2}>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="Поиск по имени/телефону"
+                    value={massCampaignFormData.clientFilters?.search || ''}
+                    onChange={(e) =>
+                      setMassCampaignFormData({
+                        ...massCampaignFormData,
+                        clientFilters: {
+                          ...massCampaignFormData.clientFilters,
+                          search: e.target.value || undefined,
+                        },
+                      })
+                    }
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <FormControl fullWidth>
+                    <InputLabel>Статус клиента</InputLabel>
+                    <Select
+                      value={massCampaignFormData.clientFilters?.status || ''}
+                      onChange={(e) =>
+                        setMassCampaignFormData({
+                          ...massCampaignFormData,
+                          clientFilters: {
+                            ...massCampaignFormData.clientFilters,
+                            status: e.target.value || undefined,
+                          },
+                        })
+                      }
+                      label="Статус клиента"
+                    >
+                      <MenuItem value="">Все</MenuItem>
+                      <MenuItem value="active">Активные</MenuItem>
+                      <MenuItem value="inactive">Неактивные</MenuItem>
+                      <MenuItem value="blocked">Заблокированные</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="Теги (через запятую)"
+                    value={massCampaignFormData.clientFilters?.tags?.join(', ') || ''}
+                    onChange={(e) =>
+                      setMassCampaignFormData({
+                        ...massCampaignFormData,
+                        clientFilters: {
+                          ...massCampaignFormData.clientFilters,
+                          tags: e.target.value
+                            ? e.target.value.split(',').map((t) => t.trim()).filter(Boolean)
+                            : undefined,
+                        },
+                      })
+                    }
+                    helperText="Введите теги через запятую"
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    type="number"
+                    label="Лимит клиентов (опционально)"
+                    value={massCampaignFormData.limit || ''}
+                    onChange={(e) =>
+                      setMassCampaignFormData({
+                        ...massCampaignFormData,
+                        limit: e.target.value ? parseInt(e.target.value) : undefined,
+                      })
+                    }
+                    helperText="Максимальное количество клиентов для рассылки"
+                  />
+                </Grid>
+              </Grid>
+            </Paper>
+
+            <Paper sx={{ p: 3, mb: 3 }}>
+              <Typography variant="h6" gutterBottom>
+                Настройки рассылки
+              </Typography>
+              <Grid container spacing={2}>
+                <Grid item xs={12}>
+                  <FormControl fullWidth>
+                    <InputLabel>Шаблон</InputLabel>
+                    <Select
+                      value={massCampaignFormData.templateId}
+                      onChange={(e) =>
+                        setMassCampaignFormData({ ...massCampaignFormData, templateId: e.target.value })
+                      }
+                      label="Шаблон"
+                      required
+                    >
+                      {templates
+                        .filter((t) => t.status === WABATemplateStatus.APPROVED)
+                        .map((template) => (
+                          <MenuItem key={template.id} value={template.id}>
+                            {template.name}
+                          </MenuItem>
+                        ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Параметры (JSON)"
+                    value={JSON.stringify(massCampaignFormData.parameters, null, 2)}
+                    onChange={(e) => {
+                      try {
+                        const params = JSON.parse(e.target.value);
+                        setMassCampaignFormData({ ...massCampaignFormData, parameters: params });
+                      } catch {
+                        // Игнорируем ошибки парсинга
+                      }
+                    }}
+                    multiline
+                    rows={4}
+                    helperText="JSON объект с параметрами для подстановки в шаблон (одинаковые для всех клиентов)"
+                  />
+                </Grid>
+              </Grid>
+            </Paper>
+
+            <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
+              <Button
+                variant="contained"
+                startIcon={<Send />}
+                onClick={async () => {
+                  try {
+                    setError(null);
+                    const result = await wabaService.createMassCampaign(massCampaignFormData);
+                    alert(`Создано ${result.count} кампаний`);
+                    setMassCampaignFormData({
+                      templateId: '',
+                      clientFilters: {},
+                      parameters: {},
+                      limit: undefined,
+                    });
+                    loadCampaigns();
+                  } catch (err: any) {
+                    setError(getErrorMessage(err));
+                  }
+                }}
+                disabled={!massCampaignFormData.templateId}
+                sx={{ borderRadius: 2 }}
+              >
+                Создать массовую рассылку
+              </Button>
+            </Box>
           </TabPanel>
         </Paper>
 

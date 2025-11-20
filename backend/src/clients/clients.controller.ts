@@ -20,6 +20,8 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../roles/guards/permissions.guard';
 import { RequirePermissions } from '../roles/decorators/require-permissions.decorator';
 import { Action, Subject } from '../roles/abilities.definition';
+import { GetUser } from '../auth/decorators/get-user.decorator';
+import { User } from '../entities/user.entity';
 
 @Controller('clients')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -110,6 +112,56 @@ export class ClientsController {
         'Неподдерживаемый формат файла. Используйте Excel (.xlsx, .xls) или CSV (.csv)',
       );
     }
+  }
+
+  /**
+   * Получить комментарии клиента
+   * GET /clients/:id/comments
+   */
+  @Get(':id/comments')
+  @RequirePermissions({ action: Action.Read, subject: Subject.Client })
+  getComments(@Param('id') id: string) {
+    return this.clientsService.getClientComments(id);
+  }
+
+  /**
+   * Создать комментарий к клиенту
+   * POST /clients/:id/comments
+   */
+  @Post(':id/comments')
+  @RequirePermissions({ action: Action.Update, subject: Subject.Client })
+  @HttpCode(HttpStatus.CREATED)
+  createComment(
+    @Param('id') id: string,
+    @Body() createCommentDto: { content: string },
+    @GetUser() user: User,
+  ) {
+    return this.clientsService.createClientComment(id, user.id, createCommentDto.content);
+  }
+
+  /**
+   * Обновить комментарий клиента
+   * PUT /clients/:id/comments/:commentId
+   */
+  @Put(':id/comments/:commentId')
+  @RequirePermissions({ action: Action.Update, subject: Subject.Client })
+  updateComment(
+    @Param('commentId') commentId: string,
+    @Body() updateCommentDto: { content: string },
+    @GetUser() user: User,
+  ) {
+    return this.clientsService.updateClientComment(commentId, user.id, updateCommentDto.content);
+  }
+
+  /**
+   * Удалить комментарий клиента
+   * DELETE /clients/:id/comments/:commentId
+   */
+  @Delete(':id/comments/:commentId')
+  @RequirePermissions({ action: Action.Update, subject: Subject.Client })
+  @HttpCode(HttpStatus.NO_CONTENT)
+  deleteComment(@Param('commentId') commentId: string, @GetUser() user: User) {
+    return this.clientsService.deleteClientComment(commentId, user.id);
   }
 }
 

@@ -40,7 +40,7 @@ import {
 import { Calendar, momentLocalizer, View, Event } from 'react-big-calendar';
 import moment from 'moment';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
-import { tasksService, Task, TaskStatus, TaskPriority, CreateTaskDto, FilterTasksDto } from '../../services/tasks.service';
+import { tasksService, Task, TaskStatus, TaskPriority, TaskType, CreateTaskDto, FilterTasksDto } from '../../services/tasks.service';
 import { clientsService } from '../../services/clients.service';
 import api from '../../services/api';
 import { getErrorMessage } from '../../utils/errorMessages';
@@ -88,6 +88,7 @@ export const TasksPage: React.FC = () => {
     status: TaskStatus.PENDING,
     priority: TaskPriority.MEDIUM,
     category: '',
+    type: TaskType.OTHER,
     dueDate: '',
   });
 
@@ -104,9 +105,10 @@ export const TasksPage: React.FC = () => {
       setLoading(true);
       setError(null);
       const response = await tasksService.findAll(filters);
-      setTasks(response.tasks);
+      setTasks(response?.tasks || []);
     } catch (err: any) {
       setError(getErrorMessage(err));
+      setTasks([]);
     } finally {
       setLoading(false);
     }
@@ -115,36 +117,40 @@ export const TasksPage: React.FC = () => {
   const loadClients = async () => {
     try {
       const response = await clientsService.findAll({ limit: 100 });
-      setClients(response.clients);
+      setClients(response?.clients || []);
     } catch (err) {
       console.error('Failed to load clients:', err);
+      setClients([]);
     }
   };
 
   const loadUsers = async () => {
     try {
-      const response = await usersService.findAll();
-      setUsers(response);
+      const response = await api.get('/users');
+      setUsers(response.data || []);
     } catch (err) {
       console.error('Failed to load users:', err);
+      setUsers([]);
     }
   };
 
   const loadUpcomingTasks = async () => {
     try {
       const tasks = await tasksService.getUpcomingTasks(24);
-      setUpcomingTasks(tasks);
+      setUpcomingTasks(tasks || []);
     } catch (err) {
       console.error('Failed to load upcoming tasks:', err);
+      setUpcomingTasks([]);
     }
   };
 
   const loadOverdueTasks = async () => {
     try {
       const tasks = await tasksService.getOverdueTasks();
-      setOverdueTasks(tasks);
+      setOverdueTasks(tasks || []);
     } catch (err) {
       console.error('Failed to load overdue tasks:', err);
+      setOverdueTasks([]);
     }
   };
 
@@ -160,6 +166,7 @@ export const TasksPage: React.FC = () => {
         status: TaskStatus.PENDING,
         priority: TaskPriority.MEDIUM,
         category: '',
+        type: TaskType.OTHER,
         dueDate: '',
       });
       loadTasks();
@@ -206,6 +213,7 @@ export const TasksPage: React.FC = () => {
       status: task.status,
       priority: task.priority,
       category: task.category || '',
+      type: task.type || TaskType.OTHER,
       dueDate: task.dueDate ? task.dueDate.split('T')[0] : '',
     });
     setEditDialogOpen(true);
@@ -279,8 +287,25 @@ export const TasksPage: React.FC = () => {
     }
   };
 
+  const getTypeLabel = (type: TaskType): string => {
+    switch (type) {
+      case TaskType.CALL:
+        return 'Позвонить';
+      case TaskType.MEETING:
+        return 'Назначить встречу';
+      case TaskType.MESSAGE:
+        return 'Написать сообщение';
+      case TaskType.FOLLOW_UP:
+        return 'Последующее действие';
+      case TaskType.OTHER:
+        return 'Другое';
+      default:
+        return type;
+    }
+  };
+
   // Преобразование задач в события для календаря
-  const calendarEvents: Event[] = tasks
+  const calendarEvents: Event[] = (tasks || [])
     .filter((task) => task.dueDate)
     .map((task) => ({
       id: task.id,
@@ -418,6 +443,23 @@ export const TasksPage: React.FC = () => {
                 </Grid>
                 <Grid item xs={12} sm={6} md={3}>
                   <FormControl fullWidth>
+                    <InputLabel>Тип задачи</InputLabel>
+                    <Select
+                      value={filters.type || ''}
+                      onChange={(e) => setFilters({ ...filters, type: e.target.value ? e.target.value as TaskType : undefined })}
+                      label="Тип задачи"
+                    >
+                      <MenuItem value="">Все</MenuItem>
+                      {Object.values(TaskType).map((type) => (
+                        <MenuItem key={type} value={type}>
+                          {getTypeLabel(type)}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <FormControl fullWidth>
                     <InputLabel>Клиент</InputLabel>
                     <Select
                       value={filters.clientId || ''}
@@ -425,7 +467,7 @@ export const TasksPage: React.FC = () => {
                       label="Клиент"
                     >
                       <MenuItem value="">Все</MenuItem>
-                      {clients.map((client) => (
+                      {(clients || []).map((client) => (
                         <MenuItem key={client.id} value={client.id}>
                           {client.name}
                         </MenuItem>
@@ -451,13 +493,13 @@ export const TasksPage: React.FC = () => {
               <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
                 <CircularProgress />
               </Box>
-            ) : tasks.length === 0 ? (
+            ) : !tasks || tasks.length === 0 ? (
               <Typography variant="body1" color="text.secondary" align="center" sx={{ py: 4 }}>
                 Задачи не найдены
               </Typography>
             ) : (
               <Grid container spacing={2}>
-                {tasks.map((task) => (
+                {(tasks || []).map((task) => (
                   <Grid item xs={12} md={6} lg={4} key={task.id}>
                     <Card>
                       <CardContent>
@@ -493,6 +535,9 @@ export const TasksPage: React.FC = () => {
                           />
                           {task.category && (
                             <Chip label={task.category} size="small" variant="outlined" />
+                          )}
+                          {task.type && (
+                            <Chip label={getTypeLabel(task.type)} size="small" variant="outlined" color="primary" />
                           )}
                         </Box>
                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
@@ -549,7 +594,7 @@ export const TasksPage: React.FC = () => {
                   label="Клиент"
                   required
                 >
-                  {clients.map((client) => (
+                      {(clients || []).map((client) => (
                     <MenuItem key={client.id} value={client.id}>
                       {client.name}
                     </MenuItem>
@@ -564,7 +609,7 @@ export const TasksPage: React.FC = () => {
                   label="Исполнитель"
                   required
                 >
-                  {users.map((u) => (
+                  {(users || []).map((u) => (
                     <MenuItem key={u.id} value={u.id}>
                       {u.email}
                     </MenuItem>
@@ -605,6 +650,20 @@ export const TasksPage: React.FC = () => {
                 onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                 fullWidth
               />
+              <FormControl fullWidth>
+                <InputLabel>Тип задачи</InputLabel>
+                <Select
+                  value={formData.type || TaskType.OTHER}
+                  onChange={(e) => setFormData({ ...formData, type: e.target.value as TaskType })}
+                  label="Тип задачи"
+                >
+                  {Object.values(TaskType).map((type) => (
+                    <MenuItem key={type} value={type}>
+                      {getTypeLabel(type)}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
               <TextField
                 label="Срок выполнения"
                 type="date"
@@ -651,7 +710,7 @@ export const TasksPage: React.FC = () => {
                   label="Клиент"
                   required
                 >
-                  {clients.map((client) => (
+                      {(clients || []).map((client) => (
                     <MenuItem key={client.id} value={client.id}>
                       {client.name}
                     </MenuItem>
@@ -666,7 +725,7 @@ export const TasksPage: React.FC = () => {
                   label="Исполнитель"
                   required
                 >
-                  {users.map((u) => (
+                  {(users || []).map((u) => (
                     <MenuItem key={u.id} value={u.id}>
                       {u.email}
                     </MenuItem>
@@ -707,6 +766,20 @@ export const TasksPage: React.FC = () => {
                 onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                 fullWidth
               />
+              <FormControl fullWidth>
+                <InputLabel>Тип задачи</InputLabel>
+                <Select
+                  value={formData.type || TaskType.OTHER}
+                  onChange={(e) => setFormData({ ...formData, type: e.target.value as TaskType })}
+                  label="Тип задачи"
+                >
+                  {Object.values(TaskType).map((type) => (
+                    <MenuItem key={type} value={type}>
+                      {getTypeLabel(type)}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
               <TextField
                 label="Срок выполнения"
                 type="date"

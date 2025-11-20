@@ -26,6 +26,8 @@ import { ReportsModule } from './reports/reports.module';
 import { FunnelsModule } from './funnels/funnels.module';
 import { SupportLinesModule } from './support-lines/support-lines.module';
 import { ScheduledReportsModule } from './scheduled-reports/scheduled-reports.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { WebhooksModule } from './webhooks/webhooks.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { AllEntities } from './entities';
 import { TestPermissionsController } from './roles/test-permissions.controller';
@@ -101,6 +103,8 @@ import { TestPermissionsController } from './roles/test-permissions.controller';
     FunnelsModule,
     SupportLinesModule,
     ScheduledReportsModule,
+    NotificationsModule,
+    WebhooksModule,
   ],
   controllers: [AppController, HealthController, TestPermissionsController],
   providers: [

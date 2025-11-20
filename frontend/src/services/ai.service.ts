@@ -38,9 +38,18 @@ export interface AiSetting {
   temperature: number;
   maxTokens?: number;
   tokensUsed: number;
+  workingHours?: WorkingHours;
   settings?: Record<string, any>;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface WorkingHours {
+  enabled?: boolean;
+  timezone?: string;
+  weekdays?: number[];
+  startTime?: string;
+  endTime?: string;
 }
 
 export interface UpdateAiSettingDto {
@@ -50,6 +59,7 @@ export interface UpdateAiSettingDto {
   systemPrompt?: string;
   temperature?: number;
   maxTokens?: number;
+  workingHours?: WorkingHours;
 }
 
 export interface AiLog {

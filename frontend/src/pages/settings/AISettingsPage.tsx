@@ -57,6 +57,13 @@ export const AISettingsPage: React.FC = () => {
     systemPrompt: '',
     temperature: 0.7,
     maxTokens: 1000,
+    workingHours: {
+      enabled: false,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      weekdays: [1, 2, 3, 4, 5],
+      startTime: '09:00',
+      endTime: '18:00',
+    },
   });
 
   useEffect(() => {
@@ -120,6 +127,13 @@ export const AISettingsPage: React.FC = () => {
           systemPrompt: data.systemPrompt || '',
           temperature: data.temperature,
           maxTokens: data.maxTokens || 1000,
+          workingHours: data.workingHours || {
+            enabled: false,
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            weekdays: [1, 2, 3, 4, 5],
+            startTime: '09:00',
+            endTime: '18:00',
+          },
         });
       } else {
         setSetting(null);
@@ -140,6 +154,13 @@ export const AISettingsPage: React.FC = () => {
       systemPrompt: '',
       temperature: 0.7,
       maxTokens: 1000,
+      workingHours: {
+        enabled: false,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        weekdays: [1, 2, 3, 4, 5],
+        startTime: '09:00',
+        endTime: '18:00',
+      },
     });
   };
 
@@ -452,6 +473,141 @@ export const AISettingsPage: React.FC = () => {
                         helperText="Максимальная длина ответа в токенах"
                       />
                     </Grid>
+
+                    <Grid item xs={12}>
+                      <Divider sx={{ my: 2 }} />
+                      <Typography variant="h6" gutterBottom>
+                        Рабочее время
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                        Настройте рабочее время для AI-агента. В нерабочее время AI будет отвечать с задержкой или не отвечать.
+                      </Typography>
+                    </Grid>
+
+                    <Grid item xs={12}>
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={formData.workingHours?.enabled || false}
+                            onChange={(e) =>
+                              setFormData({
+                                ...formData,
+                                workingHours: {
+                                  ...formData.workingHours,
+                                  enabled: e.target.checked,
+                                },
+                              })
+                            }
+                          />
+                        }
+                        label="Включить проверку рабочего времени"
+                      />
+                    </Grid>
+
+                    {formData.workingHours?.enabled && (
+                      <>
+                        <Grid item xs={12} md={6}>
+                          <TextField
+                            fullWidth
+                            label="Часовой пояс"
+                            value={formData.workingHours?.timezone || ''}
+                            onChange={(e) =>
+                              setFormData({
+                                ...formData,
+                                workingHours: {
+                                  ...formData.workingHours,
+                                  timezone: e.target.value,
+                                },
+                              })
+                            }
+                            helperText="Например: Europe/Moscow, America/New_York"
+                          />
+                        </Grid>
+
+                        <Grid item xs={12} md={3}>
+                          <TextField
+                            fullWidth
+                            type="time"
+                            label="Время начала"
+                            value={formData.workingHours?.startTime || '09:00'}
+                            onChange={(e) =>
+                              setFormData({
+                                ...formData,
+                                workingHours: {
+                                  ...formData.workingHours,
+                                  startTime: e.target.value,
+                                },
+                              })
+                            }
+                            InputLabelProps={{ shrink: true }}
+                          />
+                        </Grid>
+
+                        <Grid item xs={12} md={3}>
+                          <TextField
+                            fullWidth
+                            type="time"
+                            label="Время окончания"
+                            value={formData.workingHours?.endTime || '18:00'}
+                            onChange={(e) =>
+                              setFormData({
+                                ...formData,
+                                workingHours: {
+                                  ...formData.workingHours,
+                                  endTime: e.target.value,
+                                },
+                              })
+                            }
+                            InputLabelProps={{ shrink: true }}
+                          />
+                        </Grid>
+
+                        <Grid item xs={12}>
+                          <Typography variant="body2" sx={{ mb: 1 }}>
+                            Дни недели (0 = воскресенье, 1 = понедельник, ..., 6 = суббота)
+                          </Typography>
+                          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                            {[
+                              { value: 0, label: 'Вс' },
+                              { value: 1, label: 'Пн' },
+                              { value: 2, label: 'Вт' },
+                              { value: 3, label: 'Ср' },
+                              { value: 4, label: 'Чт' },
+                              { value: 5, label: 'Пт' },
+                              { value: 6, label: 'Сб' },
+                            ].map((day) => (
+                              <Chip
+                                key={day.value}
+                                label={day.label}
+                                onClick={() => {
+                                  const weekdays = formData.workingHours?.weekdays || [];
+                                  const newWeekdays = weekdays.includes(day.value)
+                                    ? weekdays.filter((d) => d !== day.value)
+                                    : [...weekdays, day.value].sort();
+                                  setFormData({
+                                    ...formData,
+                                    workingHours: {
+                                      ...formData.workingHours,
+                                      weekdays: newWeekdays,
+                                    },
+                                  });
+                                }}
+                                color={
+                                  formData.workingHours?.weekdays?.includes(day.value)
+                                    ? 'primary'
+                                    : 'default'
+                                }
+                                variant={
+                                  formData.workingHours?.weekdays?.includes(day.value)
+                                    ? 'filled'
+                                    : 'outlined'
+                                }
+                              />
+                            ))}
+                          </Box>
+                        </Grid>
+                      </>
+                    )}
 
                     <Grid item xs={12}>
                       <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>

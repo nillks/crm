@@ -11,6 +11,12 @@ export interface MediaFile {
   clientId: string;
   messageId?: string;
   createdAt: string;
+  metadata?: {
+    archived?: boolean;
+    archivedAt?: string;
+    archivePath?: string;
+    restoredFrom?: string;
+  };
 }
 
 export interface UploadFileResponse {
@@ -83,6 +89,24 @@ class MediaService {
    */
   async getFilesByMessage(messageId: string): Promise<MediaFile[]> {
     const response = await api.get<MediaFile[]>(`/media/message/${messageId}`);
+    return response.data;
+  }
+
+  /**
+   * Получить архивированные файлы
+   */
+  async getArchivedFiles(page: number = 1, limit: number = 20): Promise<{ files: MediaFile[]; total: number }> {
+    const response = await api.get<{ files: MediaFile[]; total: number }>('/media/archive', {
+      params: { page, limit },
+    });
+    return response.data;
+  }
+
+  /**
+   * Восстановить файл из архива
+   */
+  async restoreFromArchive(fileId: string): Promise<MediaFile> {
+    const response = await api.post<MediaFile>(`/media/archive/${fileId}/restore`);
     return response.data;
   }
 }

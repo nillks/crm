@@ -7,6 +7,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Like, FindOptionsWhere, ILike, ArrayContains } from 'typeorm';
 import { Client } from '../entities/client.entity';
+import { ClientComment } from '../entities/client-comment.entity';
 import { CreateClientDto, UpdateClientDto, FilterClientsDto } from './dto';
 import * as ExcelJS from 'exceljs';
 import csv from 'csv-parser';
@@ -27,6 +28,8 @@ export class ClientsService {
   constructor(
     @InjectRepository(Client)
     private clientsRepository: Repository<Client>,
+    @InjectRepository(ClientComment)
+    private clientCommentsRepository: Repository<ClientComment>,
   ) {}
 
   /**
@@ -512,6 +515,77 @@ export class ClientsService {
           reject(error);
         });
     });
+  }
+
+  /**
+   * Получить комментарии клиента
+   */
+  async getClientComments(clientId: string): Promise<ClientComment[]> {
+    return this.clientCommentsRepository.find({
+      where: { clientId },
+      relations: ['user'],
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  /**
+   * Создать комментарий к клиенту
+   */
+  async createClientComment(clientId: string, userId: string, content: string): Promise<ClientComment> {
+    const client = await this.findOne(clientId);
+    if (!client) {
+      throw new NotFoundException(`Клиент с ID ${clientId} не найден`);
+    }
+
+    const comment = this.clientCommentsRepository.create({
+      clientId,
+      userId,
+      content,
+    });
+
+    return this.clientCommentsRepository.save(comment);
+  }
+
+  /**
+   * Обновить комментарий клиента
+   */
+  async updateClientComment(commentId: string, userId: string, content: string): Promise<ClientComment> {
+    const comment = await this.clientCommentsRepository.findOne({
+      where: { id: commentId },
+      relations: ['user'],
+    });
+
+    if (!comment) {
+      throw new NotFoundException(`Комментарий с ID ${commentId} не найден`);
+    }
+
+    // Проверяем, что пользователь является автором комментария
+    if (comment.userId !== userId) {
+      throw new BadRequestException('Вы можете редактировать только свои комментарии');
+    }
+
+    comment.content = content;
+    return this.clientCommentsRepository.save(comment);
+  }
+
+  /**
+   * Удалить комментарий клиента
+   */
+  async deleteClientComment(commentId: string, userId: string): Promise<void> {
+    const comment = await this.clientCommentsRepository.findOne({
+      where: { id: commentId },
+    });
+
+    if (!comment) {
+      throw new NotFoundException(`Комментарий с ID ${commentId} не найден`);
+    }
+
+    // Проверяем, что пользователь является автором комментария
+    if (comment.userId !== userId) {
+      throw new BadRequestException('Вы можете удалять только свои комментарии');
+    }
+
+    await this.clientCommentsRepository.remove(comment);
   }
 }
 

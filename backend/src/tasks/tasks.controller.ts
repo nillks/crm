@@ -93,19 +93,27 @@ export class TasksController {
    * Получить задачи с приближающимися сроками
    * GET /tasks/upcoming?hours=24
    */
-  @Get('upcoming/upcoming')
+  @Get('upcoming')
   async getUpcomingTasks(@Query('hours') hours?: string) {
-    const hoursNum = hours ? parseInt(hours, 10) : 24;
-    return this.tasksService.getUpcomingTasks(hoursNum);
+    try {
+      const hoursNum = hours ? parseInt(hours, 10) : 24;
+      return await this.tasksService.getUpcomingTasks(hoursNum);
+    } catch (error) {
+      throw error;
+    }
   }
 
   /**
    * Получить просроченные задачи
    * GET /tasks/overdue
    */
-  @Get('overdue/overdue')
+  @Get('overdue')
   async getOverdueTasks() {
-    return this.tasksService.getOverdueTasks();
+    try {
+      return await this.tasksService.getOverdueTasks();
+    } catch (error) {
+      throw error;
+    }
   }
 }
 

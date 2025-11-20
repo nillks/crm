@@ -119,6 +119,19 @@ export interface CreateWABACampaignDto {
   metadata?: Record<string, any>;
 }
 
+export interface CreateMassWABACampaignDto {
+  templateId: string;
+  clientFilters: {
+    tags?: string[];
+    status?: 'active' | 'inactive' | 'blocked';
+    search?: string;
+    customFields?: Record<string, any>;
+  };
+  parameters: Record<string, string>;
+  scheduledAt?: string;
+  limit?: number;
+}
+
 export interface CreateWABACredentialsDto {
   accessToken: string;
   phoneNumberId: string;
@@ -216,6 +229,14 @@ class WABAService {
    */
   async sendCampaign(id: string): Promise<void> {
     await api.post(`/waba/campaigns/${id}/send`);
+  }
+
+  /**
+   * Создать массовую кампанию
+   */
+  async createMassCampaign(dto: CreateMassWABACampaignDto): Promise<{ count: number; campaigns: WABACampaign[] }> {
+    const response = await api.post<{ count: number; campaigns: WABACampaign[] }>('/waba/campaigns/mass', dto);
+    return response.data;
   }
 
   /**

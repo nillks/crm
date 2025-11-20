@@ -20,6 +20,7 @@ export * from './funnel.entity';
 export * from './funnel-stage.entity';
 export * from './support-line.entity';
 export * from './scheduled-report.entity';
+export * from './client-comment.entity';
 
 // Export entity classes only (for TypeORM)
 import { Role } from './role.entity';
@@ -43,6 +44,8 @@ import { Funnel } from './funnel.entity';
 import { FunnelStage } from './funnel-stage.entity';
 import { SupportLine } from './support-line.entity';
 import { ScheduledReport } from './scheduled-report.entity';
+import { ClientComment } from './client-comment.entity';
+import { Notification } from './notification.entity';
 
 export const AllEntities = [
   Role,
@@ -66,4 +69,6 @@ export const AllEntities = [
   FunnelStage,
   SupportLine,
   ScheduledReport,
+  ClientComment,
+  Notification,
 ];

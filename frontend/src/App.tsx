@@ -21,6 +21,9 @@ import { TemplatesPage } from './pages/templates/TemplatesPage';
 import { WABAPage } from './pages/admin/WABAPage';
 import { SupportLinesPage } from './pages/admin/SupportLinesPage';
 import { ScheduledReportsPage } from './pages/admin/ScheduledReportsPage';
+import { FunnelsPage } from './pages/admin/FunnelsPage';
+import { ProfilePage } from './pages/profile/ProfilePage';
+import { LimitsPage } from './pages/admin/LimitsPage';
 
 // Компонент для редиректа авторизованных пользователей
 const PublicRoute = ({ children }: { children: ReactNode }) => {
@@ -169,6 +172,30 @@ function App() {
               element={
                 <ProtectedRoute>
                   <ScheduledReportsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/funnels"
+              element={
+                <ProtectedRoute>
+                  <FunnelsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/limits"
+              element={
+                <ProtectedRoute>
+                  <LimitsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <ProfilePage />
                 </ProtectedRoute>
               }
             />

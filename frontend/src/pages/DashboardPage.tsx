@@ -22,9 +22,11 @@ import {
   Settings,
   CalendarToday,
   Info,
+  Speed,
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 import { RolesInfoDialog } from '../components/RolesInfoDialog';
+import { Notifications } from '../components/Notifications';
 
 export const DashboardPage: React.FC = () => {
   const { user, logout } = useAuth();
@@ -61,15 +63,26 @@ export const DashboardPage: React.FC = () => {
               CRM Контакт-центр
             </Typography>
           </Box>
-          <Button
-            variant="outlined"
-            color="error"
-            startIcon={<Logout />}
-            onClick={handleLogout}
-            sx={{ borderRadius: 2 }}
-          >
-            Выйти
-          </Button>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Notifications />
+            <Button
+              variant="outlined"
+              startIcon={<Person />}
+              onClick={() => navigate('/profile')}
+              sx={{ borderRadius: 2 }}
+            >
+              Профиль
+            </Button>
+            <Button
+              variant="outlined"
+              color="error"
+              startIcon={<Logout />}
+              onClick={handleLogout}
+              sx={{ borderRadius: 2 }}
+            >
+              Выйти
+            </Button>
+          </Box>
         </Box>
 
         {/* Welcome Card */}
@@ -498,6 +511,51 @@ export const DashboardPage: React.FC = () => {
                   }}
                 >
                   Открыть календарь
+                </Button>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          <Grid item xs={12} md={4}>
+            <Card
+              sx={{
+                borderRadius: 3,
+                height: '100%',
+                cursor: 'pointer',
+                background: 'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)',
+                color: 'white',
+                transition: 'transform 0.2s, boxShadow 0.2s',
+                '&:hover': {
+                  transform: 'translateY(-4px)',
+                  boxShadow: 6,
+                },
+              }}
+              onClick={() => navigate('/admin/limits')}
+            >
+              <CardContent sx={{ p: 3 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+                  <Speed sx={{ fontSize: 40 }} />
+                  <Typography variant="h6" fontWeight={600}>
+                    Производственные лимиты
+                  </Typography>
+                </Box>
+                <Typography variant="body2" sx={{ mb: 2, opacity: 0.9 }}>
+                  Просмотр использования ресурсов и лимитов системы
+                </Typography>
+                <Button
+                  variant="contained"
+                  startIcon={<Speed />}
+                  fullWidth
+                  sx={{
+                    borderRadius: 2,
+                    bgcolor: 'rgba(255, 255, 255, 0.2)',
+                    color: 'white',
+                    '&:hover': {
+                      bgcolor: 'rgba(255, 255, 255, 0.3)',
+                    },
+                  }}
+                >
+                  Открыть лимиты
                 </Button>
               </CardContent>
             </Card>

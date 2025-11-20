@@ -25,6 +25,7 @@ export interface Task {
   status: TaskStatus;
   priority: TaskPriority;
   category?: string;
+  type?: TaskType;
   dueDate?: string;
   completedAt?: string;
   createdAt: string;
@@ -40,6 +41,14 @@ export interface Task {
   };
 }
 
+export enum TaskType {
+  CALL = 'call',
+  MEETING = 'meeting',
+  MESSAGE = 'message',
+  FOLLOW_UP = 'follow_up',
+  OTHER = 'other',
+}
+
 export interface CreateTaskDto {
   title: string;
   description?: string;
@@ -48,6 +57,7 @@ export interface CreateTaskDto {
   status?: TaskStatus;
   priority?: TaskPriority;
   category?: string;
+  type?: TaskType;
   dueDate?: string;
 }
 
@@ -59,6 +69,7 @@ export interface UpdateTaskDto {
   status?: TaskStatus;
   priority?: TaskPriority;
   category?: string;
+  type?: TaskType;
   dueDate?: string;
 }
 
@@ -68,6 +79,7 @@ export interface FilterTasksDto {
   status?: TaskStatus;
   priority?: TaskPriority;
   category?: string;
+  type?: TaskType;
   startDate?: string;
   endDate?: string;
   limit?: number;

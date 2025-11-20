@@ -29,6 +29,7 @@ export enum TicketChannel {
   TELEGRAM = 'telegram',
   INSTAGRAM = 'instagram',
   CALL = 'call',
+  WEBSITE = 'website',
 }
 
 export enum TicketCategory {
