@@ -1,4 +1,5 @@
-import { IsString, IsOptional, IsBoolean, IsObject } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsObject, IsNumber, Min } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class CreateWABACredentialsDto {
   @IsString()
@@ -59,6 +60,12 @@ export class UpdateWABACredentialsDto {
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;
+
+  @IsNumber()
+  @IsOptional()
+  @Type(() => Number)
+  @Min(0)
+  autoPauseThreshold?: number; // Порог для автопаузы
 
   @IsObject()
   @IsOptional()

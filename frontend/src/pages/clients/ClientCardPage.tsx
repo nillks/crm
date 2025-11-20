@@ -26,6 +26,8 @@ import {
   TableHead,
   TableRow,
   Paper,
+  Autocomplete,
+  Stack,
 } from '@mui/material';
 import {
   ArrowBack,
@@ -105,6 +107,8 @@ export const ClientCardPage: React.FC = () => {
         instagramId: '',
         notes: '',
         status: 'active',
+        tags: [],
+        customFields: {},
       });
       setLoading(false);
     }
@@ -127,6 +131,8 @@ export const ClientCardPage: React.FC = () => {
         instagramId: data.instagramId || '',
         notes: data.notes || '',
         status: data.status,
+        tags: data.tags || [],
+        customFields: data.customFields || {},
       });
       
       // Загружаем настройки AI и логи, если переключились на вкладку AI
@@ -354,6 +360,95 @@ export const ClientCardPage: React.FC = () => {
                   />
                 </Grid>
                 <Grid item xs={12}>
+                  <Autocomplete
+                    multiple
+                    freeSolo
+                    options={[]}
+                    value={formData.tags || []}
+                    onChange={(_, newValue) => {
+                      setFormData({ ...formData, tags: newValue });
+                    }}
+                    renderInput={(params) => (
+                      <TextField {...params} label="Теги" placeholder="Добавить тег" />
+                    )}
+                    renderTags={(value, getTagProps) =>
+                      value.map((option, index) => (
+                        <Chip
+                          variant="outlined"
+                          label={option}
+                          {...getTagProps({ index })}
+                          key={index}
+                        />
+                      ))
+                    }
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <Typography variant="subtitle2" gutterBottom>
+                    Кастомные поля
+                  </Typography>
+                  <Stack spacing={2}>
+                    {Object.entries(formData.customFields || {}).map(([key, value], idx) => (
+                      <Box key={idx} sx={{ display: 'flex', gap: 2 }}>
+                        <TextField
+                          label="Ключ"
+                          value={key}
+                          onChange={(e) => {
+                            const newFields = { ...formData.customFields };
+                            delete newFields[key];
+                            newFields[e.target.value] = value;
+                            setFormData({ ...formData, customFields: newFields });
+                          }}
+                          size="small"
+                          sx={{ flex: 1 }}
+                        />
+                        <TextField
+                          label="Значение"
+                          value={String(value)}
+                          onChange={(e) => {
+                            setFormData({
+                              ...formData,
+                              customFields: {
+                                ...formData.customFields,
+                                [key]: e.target.value,
+                              },
+                            });
+                          }}
+                          size="small"
+                          sx={{ flex: 1 }}
+                        />
+                        <IconButton
+                          onClick={() => {
+                            const newFields = { ...formData.customFields };
+                            delete newFields[key];
+                            setFormData({ ...formData, customFields: newFields });
+                          }}
+                          color="error"
+                        >
+                          <Cancel />
+                        </IconButton>
+                      </Box>
+                    ))}
+                    <Button
+                      startIcon={<Add />}
+                      onClick={() => {
+                        const newKey = `field_${Date.now()}`;
+                        setFormData({
+                          ...formData,
+                          customFields: {
+                            ...formData.customFields,
+                            [newKey]: '',
+                          },
+                        });
+                      }}
+                      variant="outlined"
+                      size="small"
+                    >
+                      Добавить поле
+                    </Button>
+                  </Stack>
+                </Grid>
+                <Grid item xs={12}>
                   <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
                     <Button
                       variant="outlined"
@@ -435,6 +530,44 @@ export const ClientCardPage: React.FC = () => {
                     <Typography variant="body1">{displayClient.instagramId}</Typography>
                   </Grid>
                 )}
+                {displayClient?.tags && displayClient.tags.length > 0 && (
+                  <Grid item xs={12}>
+                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                      Теги
+                    </Typography>
+                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                      {displayClient.tags.map((tag, idx) => (
+                        <Chip key={idx} label={tag} size="small" variant="outlined" />
+                      ))}
+                    </Box>
+                  </Grid>
+                )}
+                {displayClient?.customFields &&
+                  Object.keys(displayClient.customFields).length > 0 && (
+                    <Grid item xs={12}>
+                      <Typography variant="body2" color="text.secondary" gutterBottom>
+                        Кастомные поля
+                      </Typography>
+                      <TableContainer component={Paper} variant="outlined">
+                        <Table size="small">
+                          <TableHead>
+                            <TableRow>
+                              <TableCell>Ключ</TableCell>
+                              <TableCell>Значение</TableCell>
+                            </TableRow>
+                          </TableHead>
+                          <TableBody>
+                            {Object.entries(displayClient.customFields).map(([key, value]) => (
+                              <TableRow key={key}>
+                                <TableCell>{key}</TableCell>
+                                <TableCell>{String(value)}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </TableContainer>
+                    </Grid>
+                  )}
                 {displayClient?.notes && (
                   <Grid item xs={12}>
                     <Typography variant="body2" color="text.secondary" gutterBottom>

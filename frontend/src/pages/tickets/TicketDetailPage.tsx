@@ -24,6 +24,9 @@ import {
   Divider,
   Avatar,
   Paper,
+  Autocomplete,
+  Tabs,
+  Tab,
 } from '@mui/material';
 import {
   ArrowBack,
@@ -55,7 +58,11 @@ export const TicketDetailPage: React.FC = () => {
   const [formData, setFormData] = useState<Partial<Ticket>>({});
   const [saving, setSaving] = useState(false);
   const [transferDialogOpen, setTransferDialogOpen] = useState(false);
-  const [transferData, setTransferData] = useState<TransferTicketDto>({ toUserId: '', reason: '' });
+  const [transferData, setTransferData] = useState<TransferTicketDto>({ reason: '' });
+  const [transferTab, setTransferTab] = useState(0); // 0 - по пользователю, 1 - на линию
+  const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [userSearchResults, setUserSearchResults] = useState<any[]>([]);
+  const [searchingUsers, setSearchingUsers] = useState(false);
   const [newComment, setNewComment] = useState<CreateCommentDto>({ content: '', isInternal: false });
   const [statusChangeDialogOpen, setStatusChangeDialogOpen] = useState(false);
   const [newStatus, setNewStatus] = useState<string>('');
@@ -185,6 +192,12 @@ export const TicketDetailPage: React.FC = () => {
 
   const handleTransfer = async () => {
     if (!id || id === 'new') return;
+
+    // Проверяем, что выбран либо пользователь, либо линия
+    if (!transferData.toUserId && !transferData.toRoleName) {
+      setError('Необходимо выбрать пользователя или линию');
+      return;
+    }
 
     try {
       setSaving(true);
@@ -583,29 +596,85 @@ export const TicketDetailPage: React.FC = () => {
         <Dialog open={transferDialogOpen} onClose={() => setTransferDialogOpen(false)} maxWidth="sm" fullWidth>
           <DialogTitle>Передать тикет</DialogTitle>
           <DialogContent>
+            <Tabs value={transferTab} onChange={(_, newValue) => setTransferTab(newValue)} sx={{ mb: 2 }}>
+              <Tab label="Поиск по имени" />
+              <Tab label="Перевод на линию" />
+            </Tabs>
+
+            {transferTab === 0 ? (
+              <Autocomplete
+                options={userSearchResults}
+                getOptionLabel={(option) => `${option.name}${option.surname ? ` ${option.surname}` : ''} (${option.email})`}
+                loading={searchingUsers}
+                onInputChange={(_, value) => setUserSearchQuery(value)}
+                onChange={(_, value) => {
+                  setTransferData({ ...transferData, toUserId: value?.id, toRoleName: undefined });
+                }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Поиск пользователя по имени или фамилии"
+                    placeholder="Начните вводить имя..."
+                    fullWidth
+                  />
+                )}
+                renderOption={(props, option) => (
+                  <Box component="li" {...props}>
+                    <Avatar sx={{ mr: 2, width: 32, height: 32 }}>
+                      {option.name?.charAt(0).toUpperCase() || 'U'}
+                    </Avatar>
+                    <Box>
+                      <Typography variant="body2">
+                        {option.name}{option.surname ? ` ${option.surname}` : ''}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {option.email} • {option.role?.name}
+                      </Typography>
+                    </Box>
+                  </Box>
+                )}
+                sx={{ mt: 2 }}
+              />
+            ) : (
+              <FormControl fullWidth sx={{ mt: 2 }}>
+                <InputLabel>Выберите линию</InputLabel>
+                <Select
+                  value={transferData.toRoleName || ''}
+                  onChange={(e) => {
+                    setTransferData({ ...transferData, toRoleName: e.target.value as any, toUserId: undefined });
+                  }}
+                  label="Выберите линию"
+                >
+                  <MenuItem value="operator1">Линия №1 (operator1)</MenuItem>
+                  <MenuItem value="operator2">Линия №2 (operator2)</MenuItem>
+                  <MenuItem value="operator3">Линия №3 (operator3)</MenuItem>
+                </Select>
+              </FormControl>
+            )}
+
             <TextField
               fullWidth
-              label="ID пользователя"
-              value={transferData.toUserId}
-              onChange={(e) => setTransferData({ ...transferData, toUserId: e.target.value })}
-              sx={{ mt: 2 }}
-            />
-            <TextField
-              fullWidth
-              label="Причина передачи"
+              label="Причина передачи (необязательно)"
               multiline
               rows={3}
-              value={transferData.reason}
+              value={transferData.reason || ''}
               onChange={(e) => setTransferData({ ...transferData, reason: e.target.value })}
               sx={{ mt: 2 }}
             />
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setTransferDialogOpen(false)}>Отмена</Button>
+            <Button onClick={() => {
+              setTransferDialogOpen(false);
+              setTransferData({ reason: '' });
+              setUserSearchQuery('');
+              setUserSearchResults([]);
+            }}>
+              Отмена
+            </Button>
             <Button
               onClick={handleTransfer}
               variant="contained"
-              disabled={saving || !transferData.toUserId}
+              disabled={saving || (!transferData.toUserId && !transferData.toRoleName)}
             >
               {saving ? <CircularProgress size={20} /> : 'Передать'}
             </Button>

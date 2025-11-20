@@ -95,6 +95,13 @@ export class AIService {
         if (aiSetting && !aiSetting.isEnabled) {
           throw new BadRequestException('AI отключен для этого клиента');
         }
+
+        // Проверяем рабочее время
+        if (!this.isWithinWorkingHours(aiSetting)) {
+          throw new BadRequestException(
+            'AI работает только в рабочее время. Пожалуйста, обратитесь к оператору или попробуйте позже.',
+          );
+        }
       }
 
       // Определяем параметры запроса
@@ -242,6 +249,59 @@ export class AIService {
       throw new BadRequestException(
         `Ошибка при генерации ответа: ${error.message || 'Неизвестная ошибка'}`,
       );
+    }
+  }
+
+  /**
+   * Проверить, находится ли текущее время в рабочем времени
+   */
+  private isWithinWorkingHours(aiSetting: AiSetting | null): boolean {
+    if (!aiSetting || !aiSetting.workingHours || !aiSetting.workingHours.enabled) {
+      // Если проверка рабочего времени не включена, разрешаем работу
+      return true;
+    }
+
+    const { timezone = 'Europe/Moscow', weekdays, startTime, endTime } = aiSetting.workingHours;
+
+    try {
+      // Получаем текущее время в указанном часовом поясе
+      const now = new Date();
+      const timeInTimezone = new Date(
+        now.toLocaleString('en-US', { timeZone: timezone }),
+      );
+
+      // Проверяем день недели (0 = воскресенье, 1 = понедельник, ..., 6 = суббота)
+      const currentDay = timeInTimezone.getDay();
+      
+      if (weekdays && weekdays.length > 0 && !weekdays.includes(currentDay)) {
+        this.logger.log(`⏰ AI: Выходной день (день недели: ${currentDay})`);
+        return false;
+      }
+
+      // Проверяем время работы
+      if (startTime && endTime) {
+        const [startHour, startMinute] = startTime.split(':').map(Number);
+        const [endHour, endMinute] = endTime.split(':').map(Number);
+        
+        const currentHour = timeInTimezone.getHours();
+        const currentMinute = timeInTimezone.getMinutes();
+        const currentTimeInMinutes = currentHour * 60 + currentMinute;
+        const startTimeInMinutes = startHour * 60 + startMinute;
+        const endTimeInMinutes = endHour * 60 + endMinute;
+
+        if (currentTimeInMinutes < startTimeInMinutes || currentTimeInMinutes >= endTimeInMinutes) {
+          this.logger.log(
+            `⏰ AI: Вне рабочего времени (текущее: ${currentHour}:${currentMinute.toString().padStart(2, '0')}, рабочее: ${startTime}-${endTime})`,
+          );
+          return false;
+        }
+      }
+
+      return true;
+    } catch (error) {
+      this.logger.error('Ошибка при проверке рабочего времени:', error);
+      // В случае ошибки разрешаем работу
+      return true;
     }
   }
 

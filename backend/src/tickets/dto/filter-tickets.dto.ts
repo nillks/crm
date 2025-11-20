@@ -1,6 +1,6 @@
 import { IsOptional, IsString, IsInt, Min, Max, IsEnum, IsUUID } from 'class-validator';
 import { Type } from 'class-transformer';
-import { TicketStatus, TicketChannel } from '../../entities/ticket.entity';
+import { TicketStatus, TicketChannel, TicketCategory } from '../../entities/ticket.entity';
 
 export class FilterTicketsDto {
   @IsOptional()
@@ -26,6 +26,14 @@ export class FilterTicketsDto {
   @IsOptional()
   @IsEnum(TicketChannel)
   channel?: TicketChannel;
+
+  @IsOptional()
+  @IsEnum(TicketCategory)
+  category?: TicketCategory;
+
+  @IsOptional()
+  @IsUUID()
+  funnelStageId?: string;
 
   @IsOptional()
   @Type(() => Number)

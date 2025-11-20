@@ -86,7 +86,8 @@ export interface UpdateStatusDto {
 }
 
 export interface TransferTicketDto {
-  toUserId: string;
+  toUserId?: string;
+  toRoleName?: 'operator1' | 'operator2' | 'operator3';
   reason?: string;
 }
 
@@ -150,6 +151,25 @@ export const ticketsService = {
    */
   async transferTicket(id: string, data: TransferTicketDto): Promise<Ticket> {
     const response = await api.post<Ticket>(`/tickets/${id}/transfer`, data);
+    return response.data;
+  },
+
+  /**
+   * Поиск пользователей для перевода тикета
+   */
+  async searchUsersForTransfer(query: string): Promise<any[]> {
+    if (!query || query.length < 2) {
+      return [];
+    }
+    const response = await api.get<any[]>(`/tickets/transfer/search-users?q=${encodeURIComponent(query)}`);
+    return response.data;
+  },
+
+  /**
+   * Получить всех операторов для перевода на линии
+   */
+  async getOperatorsForTransfer(): Promise<any[]> {
+    const response = await api.get<any[]>(`/tickets/transfer/operators`);
     return response.data;
   },
 

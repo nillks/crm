@@ -10,7 +10,10 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ClientsService } from './clients.service';
 import { CreateClientDto, UpdateClientDto, FilterClientsDto } from './dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -76,6 +79,37 @@ export class ClientsController {
   @HttpCode(HttpStatus.NO_CONTENT)
   remove(@Param('id') id: string) {
     return this.clientsService.remove(id);
+  }
+
+  /**
+   * Импорт клиентов из Excel/CSV файла
+   * POST /clients/import
+   */
+  @Post('import')
+  @RequirePermissions({ action: Action.Create, subject: Subject.Client })
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: {
+        fileSize: 10 * 1024 * 1024, // 10MB
+      },
+    }),
+  )
+  async importClients(@UploadedFile() file: Express.Multer.File) {
+    if (!file) {
+      throw new Error('Файл не предоставлен');
+    }
+
+    const fileExtension = file.originalname.split('.').pop()?.toLowerCase();
+
+    if (fileExtension === 'xlsx' || fileExtension === 'xls') {
+      return this.clientsService.importFromExcel(file);
+    } else if (fileExtension === 'csv') {
+      return this.clientsService.importFromCSV(file);
+    } else {
+      throw new Error(
+        'Неподдерживаемый формат файла. Используйте Excel (.xlsx, .xls) или CSV (.csv)',
+      );
+    }
   }
 }
 

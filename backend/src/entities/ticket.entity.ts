@@ -14,6 +14,7 @@ import { Client } from './client.entity';
 import { Comment } from './comment.entity';
 import { Message } from './message.entity';
 import { TransferHistory } from './transfer-history.entity';
+import { FunnelStage } from './funnel-stage.entity';
 
 export enum TicketStatus {
   NEW = 'new',
@@ -29,9 +30,20 @@ export enum TicketChannel {
   CALL = 'call',
 }
 
+export enum TicketCategory {
+  TECHNICAL = 'technical', // Техническая поддержка
+  SALES = 'sales', // Продажи
+  COMPLAINT = 'complaint', // Жалоба
+  QUESTION = 'question', // Вопрос
+  REQUEST = 'request', // Запрос
+  OTHER = 'other', // Другое
+}
+
 @Entity('tickets')
 @Index(['status'])
 @Index(['channel'])
+@Index(['category'])
+@Index(['funnelStageId'])
 @Index(['clientId'])
 @Index(['assignedToId'])
 @Index(['createdAt'])
@@ -72,6 +84,16 @@ export class Ticket {
 
   @Column({ type: 'varchar', length: 50 })
   channel: TicketChannel;
+
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  category: TicketCategory; // Категория тикета
+
+  @Column({ type: 'uuid', nullable: true })
+  funnelStageId: string; // Текущий этап воронки
+
+  @ManyToOne(() => FunnelStage, (stage) => stage.tickets, { nullable: true })
+  @JoinColumn({ name: 'funnelStageId' })
+  funnelStage: FunnelStage;
 
   @Column({ type: 'int', default: 0 })
   priority: number; // 0-5, где 5 - наивысший приоритет

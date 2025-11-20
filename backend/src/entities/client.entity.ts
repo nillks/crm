@@ -47,6 +47,12 @@ export class Client {
   @Column({ type: 'varchar', length: 50, default: 'active' })
   status: string; // active, inactive, blocked
 
+  @Column({ type: 'text', array: true, default: '{}' })
+  tags: string[]; // Теги для категоризации клиентов
+
+  @Column({ type: 'jsonb', nullable: true })
+  customFields: Record<string, any>; // Кастомные поля (ключ-значение)
+
   @CreateDateColumn()
   createdAt: Date;
 

@@ -24,6 +24,10 @@ export class FilterClientsDto {
   status?: string; // Фильтр по статусу
 
   @IsOptional()
+  @IsString()
+  tags?: string; // Фильтр по тегам (через запятую)
+
+  @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)

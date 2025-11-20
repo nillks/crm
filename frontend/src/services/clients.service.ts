@@ -10,6 +10,8 @@ export interface Client {
   instagramId?: string;
   notes?: string;
   status: 'active' | 'inactive' | 'blocked';
+  tags?: string[];
+  customFields?: Record<string, any>;
   createdAt: string;
   updatedAt: string;
   tickets?: Ticket[];
@@ -68,6 +70,8 @@ export interface CreateClientDto {
   instagramId?: string;
   notes?: string;
   status?: 'active' | 'inactive' | 'blocked';
+  tags?: string[];
+  customFields?: Record<string, any>;
 }
 
 export interface UpdateClientDto {
@@ -79,6 +83,8 @@ export interface UpdateClientDto {
   instagramId?: string;
   notes?: string;
   status?: 'active' | 'inactive' | 'blocked';
+  tags?: string[];
+  customFields?: Record<string, any>;
 }
 
 export interface FilterClientsDto {
@@ -148,6 +154,29 @@ export const clientsService = {
    */
   async deleteClient(id: string): Promise<void> {
     await api.delete(`/clients/${id}`);
+  },
+
+  /**
+   * Импорт клиентов из Excel/CSV файла
+   */
+  async importClients(file: File): Promise<{
+    success: number;
+    failed: number;
+    errors: Array<{ row: number; error: string }>;
+  }> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await api.post<{
+      success: number;
+      failed: number;
+      errors: Array<{ row: number; error: string }>;
+    }>('/clients/import', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
   },
 };
 

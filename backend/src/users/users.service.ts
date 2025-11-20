@@ -1,8 +1,8 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, ILike } from 'typeorm';
 import { User } from '../entities/user.entity';
-import { Role } from '../entities/role.entity';
+import { Role, RoleName } from '../entities/role.entity';
 
 @Injectable()
 export class UsersService {
@@ -53,6 +53,46 @@ export class UsersService {
   async updateLastLogin(userId: string): Promise<void> {
     await this.usersRepository.update(userId, {
       lastLoginAt: new Date(),
+    });
+  }
+
+  /**
+   * Поиск пользователей по имени или фамилии
+   */
+  async searchByName(query: string): Promise<User[]> {
+    return this.usersRepository.find({
+      where: [
+        { name: ILike(`%${query}%`) },
+        { surname: ILike(`%${query}%`) },
+      ],
+      relations: ['role'],
+      take: 20, // Ограничиваем результаты
+    });
+  }
+
+  /**
+   * Получить всех пользователей с определенной ролью (линией)
+   */
+  async findByRole(roleName: RoleName): Promise<User[]> {
+    return this.usersRepository.find({
+      where: {
+        role: { name: roleName },
+      },
+      relations: ['role'],
+    });
+  }
+
+  /**
+   * Получить всех операторов (всех линий)
+   */
+  async getAllOperators(): Promise<User[]> {
+    return this.usersRepository.find({
+      where: [
+        { role: { name: RoleName.OPERATOR1 } },
+        { role: { name: RoleName.OPERATOR2 } },
+        { role: { name: RoleName.OPERATOR3 } },
+      ],
+      relations: ['role'],
     });
   }
 }

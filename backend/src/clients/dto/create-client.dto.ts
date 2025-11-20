@@ -39,5 +39,13 @@ export class CreateClientDto {
   @IsString()
   @IsIn(['active', 'inactive', 'blocked'])
   status?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  tags?: string[];
+
+  @IsOptional()
+  customFields?: Record<string, any>;
 }
 

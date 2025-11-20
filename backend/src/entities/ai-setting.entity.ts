@@ -51,6 +51,15 @@ export class AiSetting {
   tokensUsed: number; // счетчик использованных токенов
 
   @Column({ type: 'jsonb', nullable: true })
+  workingHours: {
+    enabled: boolean; // Включена ли проверка рабочего времени
+    timezone?: string; // Часовой пояс (например, 'Europe/Moscow')
+    weekdays?: number[]; // Дни недели (0=воскресенье, 1=понедельник, ..., 6=суббота)
+    startTime?: string; // Время начала работы (HH:mm, например '09:00')
+    endTime?: string; // Время окончания работы (HH:mm, например '18:00')
+  };
+
+  @Column({ type: 'jsonb', nullable: true })
   settings: Record<string, any>; // дополнительные настройки
 
   @CreateDateColumn()

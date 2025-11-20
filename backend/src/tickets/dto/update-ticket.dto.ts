@@ -1,5 +1,5 @@
 import { IsOptional, IsString, IsUUID, IsEnum, IsInt, Min, Max, IsDateString } from 'class-validator';
-import { TicketChannel } from '../../entities/ticket.entity';
+import { TicketChannel, TicketCategory } from '../../entities/ticket.entity';
 
 export class UpdateTicketDto {
   @IsOptional()
@@ -17,6 +17,14 @@ export class UpdateTicketDto {
   @IsOptional()
   @IsEnum(TicketChannel)
   channel?: TicketChannel;
+
+  @IsOptional()
+  @IsEnum(TicketCategory)
+  category?: TicketCategory;
+
+  @IsOptional()
+  @IsUUID()
+  funnelStageId?: string;
 
   @IsOptional()
   @IsInt()

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -20,12 +20,16 @@ import {
   Phone,
   Analytics,
   Settings,
+  CalendarToday,
+  Info,
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
+import { RolesInfoDialog } from '../components/RolesInfoDialog';
 
 export const DashboardPage: React.FC = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [rolesDialogOpen, setRolesDialogOpen] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -102,9 +106,19 @@ export const DashboardPage: React.FC = () => {
           <Grid item xs={12} md={4}>
             <Card sx={{ borderRadius: 3, height: '100%' }}>
               <CardContent sx={{ p: 3 }}>
-                <Typography variant="h6" gutterBottom fontWeight={600}>
-                  Информация о пользователе
-                </Typography>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                  <Typography variant="h6" fontWeight={600}>
+                    Информация о пользователе
+                  </Typography>
+                  <Button
+                    size="small"
+                    startIcon={<Info />}
+                    onClick={() => setRolesDialogOpen(true)}
+                    sx={{ borderRadius: 2 }}
+                  >
+                    О ролях
+                  </Button>
+                </Box>
                 <Box sx={{ mt: 2 }}>
                   <Typography variant="body2" color="text.secondary" gutterBottom>
                     <strong>ID:</strong> {user?.id}
@@ -443,8 +457,54 @@ export const DashboardPage: React.FC = () => {
               </CardContent>
             </Card>
           </Grid>
+
+          <Grid item xs={12} md={4}>
+            <Card
+              sx={{
+                borderRadius: 3,
+                height: '100%',
+                cursor: 'pointer',
+                background: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
+                color: 'white',
+                transition: 'transform 0.2s, boxShadow 0.2s',
+                '&:hover': {
+                  transform: 'translateY(-4px)',
+                  boxShadow: 6,
+                },
+              }}
+              onClick={() => navigate('/tasks')}
+            >
+              <CardContent sx={{ p: 3 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+                  <CalendarToday sx={{ fontSize: 40 }} />
+                  <Typography variant="h6" fontWeight={600}>
+                    Календарь задач
+                  </Typography>
+                </Box>
+                <Typography variant="body2" sx={{ mb: 2, opacity: 0.9 }}>
+                  Управление задачами, календарный вид и отслеживание дедлайнов
+                </Typography>
+                <Button
+                  variant="contained"
+                  startIcon={<CalendarToday />}
+                  fullWidth
+                  sx={{
+                    borderRadius: 2,
+                    bgcolor: 'rgba(255, 255, 255, 0.2)',
+                    color: 'white',
+                    '&:hover': {
+                      bgcolor: 'rgba(255, 255, 255, 0.3)',
+                    },
+                  }}
+                >
+                  Открыть календарь
+                </Button>
+              </CardContent>
+            </Card>
+          </Grid>
         </Grid>
       </Container>
+      <RolesInfoDialog open={rolesDialogOpen} onClose={() => setRolesDialogOpen(false)} />
     </Box>
   );
 };

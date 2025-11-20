@@ -2,11 +2,15 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Like, FindOptionsWhere, ILike } from 'typeorm';
+import { Repository, Like, FindOptionsWhere, ILike, ArrayContains } from 'typeorm';
 import { Client } from '../entities/client.entity';
 import { CreateClientDto, UpdateClientDto, FilterClientsDto } from './dto';
+import * as ExcelJS from 'exceljs';
+import csv from 'csv-parser';
+import { Readable } from 'stream';
 
 export interface PaginatedClients {
   data: Client[];
@@ -18,6 +22,8 @@ export interface PaginatedClients {
 
 @Injectable()
 export class ClientsService {
+  private readonly logger = new Logger(ClientsService.name);
+
   constructor(
     @InjectRepository(Client)
     private clientsRepository: Repository<Client>,
@@ -37,6 +43,7 @@ export class ClientsService {
       phone,
       email,
       status,
+      tags,
       include,
     } = filterDto;
 
@@ -52,42 +59,57 @@ export class ClientsService {
     }
 
     // Строим условия поиска
-    const where: FindOptionsWhere<Client>[] = [];
+    let queryBuilder = this.clientsRepository.createQueryBuilder('client');
+
+    // Добавляем связи
+    if (relations.includes('tickets')) {
+      queryBuilder.leftJoinAndSelect('client.tickets', 'tickets');
+    }
+    if (relations.includes('messages')) {
+      queryBuilder.leftJoinAndSelect('client.messages', 'messages');
+    }
+    if (relations.includes('calls')) {
+      queryBuilder.leftJoinAndSelect('client.calls', 'calls');
+    }
 
     // Если указан общий поиск, ищем по имени, телефону или email
     if (search) {
-      // Используем OR условие для поиска по нескольким полям
-      where.push(
-        { name: ILike(`%${search}%`) },
-        { phone: ILike(`%${search}%`) },
-        { email: ILike(`%${search}%`) },
+      queryBuilder.where(
+        '(client.name ILIKE :search OR client.phone ILIKE :search OR client.email ILIKE :search)',
+        { search: `%${search}%` },
       );
     } else {
       // Иначе используем конкретные фильтры
-      const conditions: FindOptionsWhere<Client> = {};
-      if (name) conditions.name = ILike(`%${name}%`);
-      if (phone) conditions.phone = ILike(`%${phone}%`);
-      if (email) conditions.email = ILike(`%${email}%`);
-      if (status) conditions.status = status;
-
-      if (Object.keys(conditions).length > 0) {
-        where.push(conditions);
+      if (name) {
+        queryBuilder.andWhere('client.name ILIKE :name', { name: `%${name}%` });
+      }
+      if (phone) {
+        queryBuilder.andWhere('client.phone ILIKE :phone', { phone: `%${phone}%` });
+      }
+      if (email) {
+        queryBuilder.andWhere('client.email ILIKE :email', { email: `%${email}%` });
+      }
+      if (status) {
+        queryBuilder.andWhere('client.status = :status', { status });
       }
     }
 
-    // Если нет условий, получаем все записи
-    const whereCondition = where.length > 0 ? where : undefined;
+    // Фильтр по тегам
+    if (tags) {
+      const tagArray = tags.split(',').map((t) => t.trim()).filter((t) => t.length > 0);
+      if (tagArray.length > 0) {
+        queryBuilder.andWhere('client.tags && :tags', { tags: tagArray });
+      }
+    }
+
+    // Сортировка
+    queryBuilder.orderBy(`client.${sortBy}`, sortOrder);
+
+    // Пагинация
+    queryBuilder.skip(skip).take(limit);
 
     // Выполняем запрос
-    const [data, total] = await this.clientsRepository.findAndCount({
-      where: whereCondition,
-      relations,
-      order: {
-        [sortBy]: sortOrder,
-      },
-      skip,
-      take: limit,
-    });
+    const [data, total] = await queryBuilder.getManyAndCount();
 
     return {
       data,
@@ -263,6 +285,180 @@ export class ClientsService {
   async remove(id: string): Promise<void> {
     const client = await this.findOne(id);
     await this.clientsRepository.remove(client);
+  }
+
+  /**
+   * Импорт клиентов из Excel файла
+   */
+  async importFromExcel(file: Express.Multer.File): Promise<{
+    success: number;
+    failed: number;
+    errors: Array<{ row: number; error: string }>;
+  }> {
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(file.buffer);
+
+    const worksheet = workbook.worksheets[0];
+    if (!worksheet) {
+      throw new BadRequestException('Файл не содержит данных');
+    }
+
+    const results = {
+      success: 0,
+      failed: 0,
+      errors: [] as Array<{ row: number; error: string }>,
+    };
+
+    // Пропускаем заголовок (первая строка)
+    let rowNumber = 2;
+    worksheet.eachRow((row, rowIndex) => {
+      if (rowIndex === 1) return; // Пропускаем заголовок
+
+      try {
+        const clientData: Partial<CreateClientDto> = {
+          name: row.getCell(1).value?.toString() || '',
+          phone: row.getCell(2).value?.toString() || undefined,
+          email: row.getCell(3).value?.toString() || undefined,
+          telegramId: row.getCell(4).value?.toString() || undefined,
+          whatsappId: row.getCell(5).value?.toString() || undefined,
+          instagramId: row.getCell(6).value?.toString() || undefined,
+          notes: row.getCell(7).value?.toString() || undefined,
+          status: (row.getCell(8).value?.toString() || 'active') as 'active' | 'inactive' | 'blocked',
+        };
+
+        if (!clientData.name) {
+          results.failed++;
+          results.errors.push({ row: rowNumber, error: 'Имя обязательно' });
+          return;
+        }
+
+        // Проверяем уникальность
+        this.clientsRepository
+          .findOne({
+            where: [
+              clientData.email ? { email: clientData.email } : {},
+              clientData.phone ? { phone: clientData.phone } : {},
+            ].filter((w) => Object.keys(w).length > 0),
+          })
+          .then(async (existing) => {
+            if (existing) {
+              results.failed++;
+              results.errors.push({
+                row: rowNumber,
+                error: 'Клиент с таким email или телефоном уже существует',
+              });
+            } else {
+              await this.clientsRepository.save(
+                this.clientsRepository.create(clientData),
+              );
+              results.success++;
+            }
+          })
+          .catch((error) => {
+            results.failed++;
+            results.errors.push({
+              row: rowNumber,
+              error: error.message || 'Ошибка при создании клиента',
+            });
+          });
+      } catch (error: any) {
+        results.failed++;
+        results.errors.push({
+          row: rowNumber,
+          error: error.message || 'Ошибка при обработке строки',
+        });
+      }
+
+      rowNumber++;
+    });
+
+    // Ждем завершения всех асинхронных операций
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
+    return results;
+  }
+
+  /**
+   * Импорт клиентов из CSV файла
+   */
+  async importFromCSV(file: Express.Multer.File): Promise<{
+    success: number;
+    failed: number;
+    errors: Array<{ row: number; error: string }>;
+  }> {
+    return new Promise((resolve, reject) => {
+      const results = {
+        success: 0,
+        failed: 0,
+        errors: [] as Array<{ row: number; error: string }>,
+      };
+
+      let rowNumber = 1;
+      const stream = Readable.from(file.buffer);
+
+      stream
+        .pipe(csv())
+        .on('data', async (row: any) => {
+          rowNumber++;
+          try {
+            const clientData: Partial<CreateClientDto> = {
+              name: row.name || row['Имя'] || '',
+              phone: row.phone || row['Телефон'] || undefined,
+              email: row.email || row['Email'] || undefined,
+              telegramId: row.telegramId || row['Telegram ID'] || undefined,
+              whatsappId: row.whatsappId || row['WhatsApp ID'] || undefined,
+              instagramId: row.instagramId || row['Instagram ID'] || undefined,
+              notes: row.notes || row['Заметки'] || undefined,
+              status: (row.status || row['Статус'] || 'active') as
+                | 'active'
+                | 'inactive'
+                | 'blocked',
+            };
+
+            if (!clientData.name) {
+              results.failed++;
+              results.errors.push({
+                row: rowNumber,
+                error: 'Имя обязательно',
+              });
+              return;
+            }
+
+            // Проверяем уникальность
+            const existing = await this.clientsRepository.findOne({
+              where: [
+                clientData.email ? { email: clientData.email } : {},
+                clientData.phone ? { phone: clientData.phone } : {},
+              ].filter((w) => Object.keys(w).length > 0),
+            });
+
+            if (existing) {
+              results.failed++;
+              results.errors.push({
+                row: rowNumber,
+                error: 'Клиент с таким email или телефоном уже существует',
+              });
+            } else {
+              await this.clientsRepository.save(
+                this.clientsRepository.create(clientData),
+              );
+              results.success++;
+            }
+          } catch (error: any) {
+            results.failed++;
+            results.errors.push({
+              row: rowNumber,
+              error: error.message || 'Ошибка при обработке строки',
+            });
+          }
+        })
+        .on('end', () => {
+          resolve(results);
+        })
+        .on('error', (error) => {
+          reject(error);
+        });
+    });
   }
 }
 

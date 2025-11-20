@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsEmail, MaxLength, IsIn } from 'class-validator';
+import { IsOptional, IsString, IsEmail, MaxLength, IsIn, IsArray } from 'class-validator';
 
 export class UpdateClientDto {
   @IsOptional()
@@ -39,5 +39,13 @@ export class UpdateClientDto {
   @IsString()
   @IsIn(['active', 'inactive', 'blocked'])
   status?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  tags?: string[];
+
+  @IsOptional()
+  customFields?: Record<string, any>;
 }
 

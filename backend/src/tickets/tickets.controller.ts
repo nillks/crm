@@ -11,6 +11,7 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { TicketsService } from './tickets.service';
+import { UsersService } from '../users/users.service';
 import {
   CreateTicketDto,
   UpdateTicketDto,
@@ -29,7 +30,10 @@ import { User } from '../entities/user.entity';
 @Controller('tickets')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class TicketsController {
-  constructor(private readonly ticketsService: TicketsService) {}
+  constructor(
+    private readonly ticketsService: TicketsService,
+    private readonly usersService: UsersService,
+  ) {}
 
   /**
    * Создать новый тикет
@@ -58,8 +62,8 @@ export class TicketsController {
    */
   @Get(':id')
   @RequirePermissions({ action: Action.Read, subject: Subject.Ticket })
-  findOne(@Param('id') id: string, @Query('include') include?: string) {
-    return this.ticketsService.findOne(id, include);
+  findOne(@Param('id') id: string, @Query('include') include?: string, @GetUser() user?: User) {
+    return this.ticketsService.findOne(id, include, user);
   }
 
   /**
@@ -88,6 +92,30 @@ export class TicketsController {
     @GetUser() user: User,
   ) {
     return this.ticketsService.updateStatus(id, updateStatusDto, user);
+  }
+
+  /**
+   * Переместить тикет на следующий этап воронки
+   * Требуется право: update Ticket
+   */
+  @Post(':id/move-next-stage')
+  @RequirePermissions({ action: Action.Update, subject: Subject.Ticket })
+  moveToNextStage(@Param('id') id: string, @GetUser() user: User) {
+    return this.ticketsService.moveToNextStage(id, user);
+  }
+
+  /**
+   * Переместить тикет на конкретный этап воронки
+   * Требуется право: update Ticket
+   */
+  @Post(':id/move-stage/:stageId')
+  @RequirePermissions({ action: Action.Update, subject: Subject.Ticket })
+  moveToStage(
+    @Param('id') id: string,
+    @Param('stageId') stageId: string,
+    @GetUser() user: User,
+  ) {
+    return this.ticketsService.moveToStage(id, stageId, user);
   }
 
   /**
@@ -127,6 +155,29 @@ export class TicketsController {
     @GetUser() user: User,
   ) {
     return this.ticketsService.createComment(id, createCommentDto, user);
+  }
+
+  /**
+   * Поиск пользователей для перевода тикета
+   * Требуется право: read Ticket
+   */
+  @Get('transfer/search-users')
+  @RequirePermissions({ action: Action.Read, subject: Subject.Ticket })
+  searchUsers(@Query('q') query: string) {
+    if (!query || query.length < 2) {
+      return [];
+    }
+    return this.usersService.searchByName(query);
+  }
+
+  /**
+   * Получить всех операторов для перевода на линии
+   * Требуется право: read Ticket
+   */
+  @Get('transfer/operators')
+  @RequirePermissions({ action: Action.Read, subject: Subject.Ticket })
+  getOperators() {
+    return this.usersService.getAllOperators();
   }
 }
 

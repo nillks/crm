@@ -32,6 +32,18 @@ export class WABACredentials {
   @Column({ type: 'boolean', default: true })
   isActive: boolean;
 
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  balance: number; // Текущий баланс в валюте аккаунта
+
+  @Column({ type: 'timestamp', nullable: true })
+  balanceLastChecked: Date; // Время последней проверки баланса
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true, default: 0 })
+  autoPauseThreshold: number; // Порог для автопаузы (минимальный баланс)
+
+  @Column({ type: 'boolean', default: false })
+  isPaused: boolean; // Приостановлены ли рассылки из-за низкого баланса
+
   @Column({ type: 'jsonb', nullable: true })
   metadata: Record<string, any>; // Дополнительные метаданные
 

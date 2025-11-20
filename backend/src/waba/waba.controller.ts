@@ -6,6 +6,7 @@ import {
   Delete,
   Body,
   Param,
+  Query,
   UseGuards,
   HttpCode,
   HttpStatus,
@@ -14,7 +15,9 @@ import { WABAService } from './waba.service';
 import { CreateWABATemplateDto } from './dto/create-waba-template.dto';
 import { UpdateWABATemplateDto } from './dto/update-waba-template.dto';
 import { CreateWABACampaignDto } from './dto/create-waba-campaign.dto';
+import { CreateMassWABACampaignDto } from './dto/create-mass-campaign.dto';
 import { CreateWABACredentialsDto, UpdateWABACredentialsDto } from './dto/waba-credentials.dto';
+import { CampaignStatsFilterDto } from './dto/campaign-stats.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { GetUser } from '../auth/decorators/get-user.decorator';
 import { User } from '../entities/user.entity';
@@ -82,6 +85,16 @@ export class WABAController {
   }
 
   /**
+   * Создать массовую рассылку с фильтрацией клиентов
+   * POST /waba/campaigns/mass
+   */
+  @Post('campaigns/mass')
+  @HttpCode(HttpStatus.CREATED)
+  async createMassCampaign(@Body() dto: CreateMassWABACampaignDto, @GetUser() user: User) {
+    return this.wabaService.createMassCampaign(dto, user.id);
+  }
+
+  /**
    * Получить все кампании
    * GET /waba/campaigns
    */
@@ -97,6 +110,15 @@ export class WABAController {
   @Get('campaigns/:id')
   async findCampaignById(@Param('id') id: string) {
     return this.wabaService.findCampaignById(id);
+  }
+
+  /**
+   * Получить статистику по кампаниям
+   * GET /waba/campaigns/stats
+   */
+  @Get('campaigns/stats')
+  async getCampaignStats(@Query() filter: CampaignStatsFilterDto) {
+    return this.wabaService.getCampaignStats(filter);
   }
 
   /**
@@ -135,6 +157,19 @@ export class WABAController {
   @Get('credentials')
   async getCredentials() {
     return this.wabaService.getCredentials();
+  }
+
+  /**
+   * Проверить баланс
+   * GET /waba/balance
+   */
+  @Get('balance')
+  async checkBalance() {
+    const balance = await this.wabaService.checkBalance();
+    if (!balance) {
+      return { error: 'Не удалось проверить баланс. Проверьте настройки WABA.' };
+    }
+    return balance;
   }
 
   /**

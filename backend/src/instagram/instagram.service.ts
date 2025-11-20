@@ -504,6 +504,35 @@ export class InstagramService implements OnModuleInit, OnModuleDestroy {
           try {
             const aiSetting = await this.aiService.getSetting(client.id);
             if (aiSetting && aiSetting.isEnabled) {
+              // Проверяем рабочее время перед вызовом AI
+              const workingHours = aiSetting.workingHours;
+              if (workingHours && workingHours.enabled) {
+                const now = new Date();
+                const timezone = workingHours.timezone || 'Europe/Moscow';
+                const timeInTimezone = new Date(now.toLocaleString('en-US', { timeZone: timezone }));
+                const currentDay = timeInTimezone.getDay();
+                
+                if (workingHours.weekdays && workingHours.weekdays.length > 0 && !workingHours.weekdays.includes(currentDay)) {
+                  this.logger.log(`⏰ AI пропущен: выходной день для клиента ${client.id}`);
+                  return;
+                }
+                
+                if (workingHours.startTime && workingHours.endTime) {
+                  const [startHour, startMinute] = workingHours.startTime.split(':').map(Number);
+                  const [endHour, endMinute] = workingHours.endTime.split(':').map(Number);
+                  const currentHour = timeInTimezone.getHours();
+                  const currentMinute = timeInTimezone.getMinutes();
+                  const currentTimeInMinutes = currentHour * 60 + currentMinute;
+                  const startTimeInMinutes = startHour * 60 + startMinute;
+                  const endTimeInMinutes = endHour * 60 + endMinute;
+                  
+                  if (currentTimeInMinutes < startTimeInMinutes || currentTimeInMinutes >= endTimeInMinutes) {
+                    this.logger.log(`⏰ AI пропущен: вне рабочего времени для клиента ${client.id}`);
+                    return;
+                  }
+                }
+              }
+              
               this.logger.log(`🤖 AI включен для клиента ${client.id}, генерирую ответ...`);
               
               // Генерируем ответ через AI

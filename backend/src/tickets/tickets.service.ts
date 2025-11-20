@@ -10,6 +10,7 @@ import { Ticket, TicketStatus } from '../entities/ticket.entity';
 import { Comment } from '../entities/comment.entity';
 import { TransferHistory } from '../entities/transfer-history.entity';
 import { User } from '../entities/user.entity';
+import { FunnelStage } from '../entities/funnel-stage.entity';
 import {
   CreateTicketDto,
   UpdateTicketDto,
@@ -38,6 +39,8 @@ export class TicketsService {
     private transferHistoryRepository: Repository<TransferHistory>,
     @InjectRepository(User)
     private usersRepository: Repository<User>,
+    @InjectRepository(FunnelStage)
+    private funnelStagesRepository: Repository<FunnelStage>,
   ) {}
 
   /**
@@ -55,6 +58,8 @@ export class TicketsService {
       createdById,
       status,
       channel,
+      category,
+      funnelStageId,
       include,
     } = filterDto;
 
@@ -84,8 +89,67 @@ export class TicketsService {
     if (createdById) where.createdById = createdById;
     if (status) where.status = status;
     if (channel) where.channel = channel;
+    if (category) where.category = category;
+    if (funnelStageId) where.funnelStageId = funnelStageId;
 
-    // Выполняем запрос
+    // Фильтрация по линии: операторы видят только тикеты своей линии
+    // Администратор видит все тикеты
+    if (user.role?.name !== 'admin' && user.role?.name) {
+      // Находим всех операторов той же линии
+      const operatorsSameLine = await this.usersRepository.find({
+        where: {
+          role: { name: user.role.name },
+        },
+        select: ['id'],
+      });
+
+      const operatorIds = operatorsSameLine.map((op) => op.id);
+
+      // Оператор видит тикеты, назначенные на операторов его линии, или созданные им
+      // Используем QueryBuilder для более сложного условия
+      const queryBuilder = this.ticketsRepository
+        .createQueryBuilder('ticket')
+        .leftJoinAndSelect('ticket.client', 'client')
+        .leftJoinAndSelect('ticket.createdBy', 'createdBy')
+        .leftJoinAndSelect('ticket.assignedTo', 'assignedTo')
+        .where('(ticket.assignedToId IN (:...operatorIds) OR ticket.createdById = :userId)', {
+          operatorIds,
+          userId: user.id,
+        });
+
+      // Применяем дополнительные фильтры
+      if (clientId) queryBuilder.andWhere('ticket.clientId = :clientId', { clientId });
+      if (assignedToId) queryBuilder.andWhere('ticket.assignedToId = :assignedToId', { assignedToId });
+      if (createdById) queryBuilder.andWhere('ticket.createdById = :createdById', { createdById });
+      if (status) queryBuilder.andWhere('ticket.status = :status', { status });
+      if (channel) queryBuilder.andWhere('ticket.channel = :channel', { channel });
+      if (category) queryBuilder.andWhere('ticket.category = :category', { category });
+      if (funnelStageId) queryBuilder.andWhere('ticket.funnelStageId = :funnelStageId', { funnelStageId });
+      if (search) queryBuilder.andWhere('ticket.title ILIKE :search', { search: `%${search}%` });
+
+      // Сортировка
+      queryBuilder.orderBy(`ticket.${sortBy}`, sortOrder);
+
+      // Пагинация
+      queryBuilder.skip(skip).take(limit);
+
+      // Загружаем дополнительные связи
+      if (relations.includes('comments')) {
+        queryBuilder.leftJoinAndSelect('ticket.comments', 'comments');
+      }
+
+      const [data, total] = await queryBuilder.getManyAndCount();
+
+      return {
+        data,
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      };
+    }
+
+    // Для администратора - обычный запрос
     const [data, total] = await this.ticketsRepository.findAndCount({
       where,
       relations,
@@ -106,9 +170,9 @@ export class TicketsService {
   }
 
   /**
-   * Получить тикет по ID
+   * Получить тикет по ID с проверкой прав доступа
    */
-  async findOne(id: string, include?: string): Promise<Ticket> {
+  async findOne(id: string, include?: string, user?: User): Promise<Ticket> {
     const relations: string[] = [];
     if (include) {
       const includes = include.split(',');
@@ -152,7 +216,7 @@ export class TicketsService {
    * Обновить тикет
    */
   async update(id: string, updateTicketDto: UpdateTicketDto, user: User): Promise<Ticket> {
-    const ticket = await this.findOne(id);
+    const ticket = await this.findOne(id, undefined, user);
 
     // Проверяем права доступа (только создатель, назначенный оператор или админ)
     if (
@@ -180,7 +244,7 @@ export class TicketsService {
     updateStatusDto: UpdateStatusDto,
     user: User,
   ): Promise<Ticket> {
-    const ticket = await this.findOne(id);
+    const ticket = await this.findOne(id, undefined, user);
 
     const oldStatus = ticket.status;
     const newStatus = updateStatusDto.status;
@@ -218,10 +282,10 @@ export class TicketsService {
   }
 
   /**
-   * Передать тикет другому оператору
+   * Передать тикет другому оператору или на линию
    */
   async transfer(id: string, transferDto: TransferTicketDto, user: User): Promise<Ticket> {
-    const ticket = await this.findOne(id);
+    const ticket = await this.findOne(id, undefined, user);
 
     // Проверяем права доступа
     if (
@@ -232,13 +296,48 @@ export class TicketsService {
       throw new ForbiddenException('Недостаточно прав для передачи этого тикета');
     }
 
-    // Проверяем, что целевой пользователь существует
-    const toUser = await this.usersRepository.findOne({
-      where: { id: transferDto.toUserId },
-    });
+    let toUser: User | null = null;
+    let transferDescription = '';
 
-    if (!toUser) {
-      throw new NotFoundException(`Пользователь с ID ${transferDto.toUserId} не найден`);
+    // Если указан конкретный пользователь
+    if (transferDto.toUserId) {
+      toUser = await this.usersRepository.findOne({
+        where: { id: transferDto.toUserId },
+        relations: ['role'],
+      });
+
+      if (!toUser) {
+        throw new NotFoundException(`Пользователь с ID ${transferDto.toUserId} не найден`);
+      }
+
+      transferDescription = `оператору ${toUser.name}${toUser.surname ? ` ${toUser.surname}` : ''}`;
+    }
+    // Если указана линия (роль)
+    else if (transferDto.toRoleName) {
+      // Находим первого доступного оператора этой линии
+      const operators = await this.usersRepository.find({
+        where: {
+          role: { name: transferDto.toRoleName },
+        },
+        relations: ['role'],
+      });
+
+      if (operators.length === 0) {
+        throw new NotFoundException(`Нет доступных операторов для линии ${transferDto.toRoleName}`);
+      }
+
+      // Выбираем первого оператора (можно улучшить логику выбора)
+      toUser = operators[0];
+      
+      const roleLabels: Record<string, string> = {
+        operator1: 'линии №1',
+        operator2: 'линии №2',
+        operator3: 'линии №3',
+      };
+      
+      transferDescription = `на ${roleLabels[transferDto.toRoleName] || transferDto.toRoleName} (${toUser.name}${toUser.surname ? ` ${toUser.surname}` : ''})`;
+    } else {
+      throw new BadRequestException('Необходимо указать либо toUserId, либо toRoleName');
     }
 
     // Создаем запись в истории передач
@@ -246,20 +345,20 @@ export class TicketsService {
       this.transferHistoryRepository.create({
         ticketId: ticket.id,
         fromUserId: user.id,
-        toUserId: transferDto.toUserId,
+        toUserId: toUser.id,
         reason: transferDto.reason,
       }),
     );
 
     // Обновляем назначенного оператора
-    ticket.assignedToId = transferDto.toUserId;
+    ticket.assignedToId = toUser.id;
 
     // Создаем комментарий о передаче
     await this.commentsRepository.save(
       this.commentsRepository.create({
         ticketId: ticket.id,
         userId: user.id,
-        content: `Тикет передан оператору ${toUser.name}${transferDto.reason ? `. Причина: ${transferDto.reason}` : ''}`,
+        content: `Тикет передан ${transferDescription}${transferDto.reason ? `. Причина: ${transferDto.reason}` : ''}`,
         isInternal: true,
       }),
     );
@@ -288,7 +387,7 @@ export class TicketsService {
     createCommentDto: CreateCommentDto,
     user: User,
   ): Promise<Comment> {
-    const ticket = await this.findOne(ticketId);
+    const ticket = await this.findOne(ticketId, undefined, user);
 
     const comment = this.commentsRepository.create({
       ...createCommentDto,
@@ -298,6 +397,99 @@ export class TicketsService {
     });
 
     return this.commentsRepository.save(comment);
+  }
+
+  /**
+   * Переместить тикет на следующий этап воронки
+   */
+  async moveToNextStage(ticketId: string, user: User): Promise<Ticket> {
+    const ticket = await this.findOne(ticketId, undefined, user);
+
+    // Проверяем права доступа
+    if (
+      ticket.createdById !== user.id &&
+      ticket.assignedToId !== user.id &&
+      user.role?.name !== 'admin'
+    ) {
+      throw new ForbiddenException('Недостаточно прав для перемещения этого тикета');
+    }
+
+    if (!ticket.funnelStageId) {
+      throw new BadRequestException('Тикет не находится в воронке');
+    }
+
+    const currentStage = await this.funnelStagesRepository.findOne({
+      where: { id: ticket.funnelStageId },
+      relations: ['funnel'],
+    });
+
+    if (!currentStage) {
+      throw new NotFoundException('Текущий этап воронки не найден');
+    }
+
+    // Находим следующий этап в той же воронке
+    const nextStage = await this.funnelStagesRepository.findOne({
+      where: {
+        funnelId: currentStage.funnelId,
+        order: currentStage.order + 1,
+        isActive: true,
+      },
+      order: { order: 'ASC' },
+    });
+
+    if (!nextStage) {
+      throw new BadRequestException('Следующий этап не найден');
+    }
+
+    // Обновляем тикет
+    ticket.funnelStageId = nextStage.id;
+
+    // Если этап финальный, закрываем тикет
+    if (nextStage.isFinal) {
+      ticket.status = TicketStatus.CLOSED;
+      ticket.closedAt = new Date();
+    } else if (nextStage.ticketStatus) {
+      // Обновляем статус тикета согласно настройкам этапа
+      ticket.status = nextStage.ticketStatus as TicketStatus;
+    }
+
+    return this.ticketsRepository.save(ticket);
+  }
+
+  /**
+   * Переместить тикет на конкретный этап воронки
+   */
+  async moveToStage(ticketId: string, stageId: string, user: User): Promise<Ticket> {
+    const ticket = await this.findOne(ticketId, undefined, user);
+
+    // Проверяем права доступа
+    if (
+      ticket.createdById !== user.id &&
+      ticket.assignedToId !== user.id &&
+      user.role?.name !== 'admin'
+    ) {
+      throw new ForbiddenException('Недостаточно прав для перемещения этого тикета');
+    }
+
+    const stage = await this.funnelStagesRepository.findOne({
+      where: { id: stageId, isActive: true },
+    });
+
+    if (!stage) {
+      throw new NotFoundException('Этап воронки не найден');
+    }
+
+    ticket.funnelStageId = stage.id;
+
+    // Если этап финальный, закрываем тикет
+    if (stage.isFinal) {
+      ticket.status = TicketStatus.CLOSED;
+      ticket.closedAt = new Date();
+    } else if (stage.ticketStatus) {
+      ticket.status = stage.ticketStatus as TicketStatus;
+    }
+
+    return this.ticketsRepository.save(ticket);
   }
 
   /**

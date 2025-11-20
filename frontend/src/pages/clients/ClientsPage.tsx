@@ -20,6 +20,16 @@ import {
   Pagination,
   CircularProgress,
   Alert,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  DialogContentText,
+  List,
+  ListItem,
+  ListItemText,
+  Divider,
+  Link,
 } from '@mui/material';
 import {
   Search,
@@ -28,6 +38,8 @@ import {
   Visibility,
   Person,
   ArrowBack,
+  Upload,
+  Download,
 } from '@mui/icons-material';
 import { clientsService } from '../../services/clients.service';
 import type { Client, FilterClientsDto } from '../../services/clients.service';
@@ -42,6 +54,14 @@ export const ClientsPage: React.FC = () => {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<{
+    success: number;
+    failed: number;
+    errors: Array<{ row: number; error: string }>;
+  } | null>(null);
   const limit = 10;
 
   const loadClients = async (params?: FilterClientsDto) => {
@@ -113,6 +133,48 @@ export const ClientsPage: React.FC = () => {
     }
   };
 
+  const handleImportClick = () => {
+    setImportDialogOpen(true);
+    setImportResult(null);
+    setImportFile(null);
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const extension = file.name.split('.').pop()?.toLowerCase();
+      if (extension === 'xlsx' || extension === 'xls' || extension === 'csv') {
+        setImportFile(file);
+      } else {
+        setError('Неподдерживаемый формат файла. Используйте Excel (.xlsx, .xls) или CSV (.csv)');
+      }
+    }
+  };
+
+  const handleImport = async () => {
+    if (!importFile) return;
+
+    try {
+      setImporting(true);
+      setError(null);
+      const result = await clientsService.importClients(importFile);
+      setImportResult(result);
+      if (result.success > 0) {
+        loadClients();
+      }
+    } catch (err: any) {
+      setError(getErrorMessage(err));
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const handleCloseImportDialog = () => {
+    setImportDialogOpen(false);
+    setImportFile(null);
+    setImportResult(null);
+  };
+
   return (
     <Box
       sx={{
@@ -149,14 +211,24 @@ export const ClientsPage: React.FC = () => {
                 Клиенты
               </Typography>
             </Box>
-            <Button
-              variant="contained"
-              startIcon={<Add />}
-              onClick={() => navigate('/clients/new')}
-              sx={{ borderRadius: 2 }}
-            >
-              Добавить клиента
-            </Button>
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <Button
+                variant="outlined"
+                startIcon={<Upload />}
+                onClick={handleImportClick}
+                sx={{ borderRadius: 2 }}
+              >
+                Импорт
+              </Button>
+              <Button
+                variant="contained"
+                startIcon={<Add />}
+                onClick={() => navigate('/clients/new')}
+                sx={{ borderRadius: 2 }}
+              >
+                Добавить клиента
+              </Button>
+            </Box>
           </Box>
 
           {/* Search */}
@@ -286,6 +358,154 @@ export const ClientsPage: React.FC = () => {
             )}
           </CardContent>
         </Card>
+
+        {/* Import Dialog */}
+        <Dialog
+          open={importDialogOpen}
+          onClose={handleCloseImportDialog}
+          maxWidth="md"
+          fullWidth
+        >
+          <DialogTitle>Импорт клиентов</DialogTitle>
+          <DialogContent>
+            <DialogContentText sx={{ mb: 3 }}>
+              Загрузите файл Excel (.xlsx, .xls) или CSV (.csv) с данными клиентов.
+            </DialogContentText>
+
+            {/* Format Instructions */}
+            <Card variant="outlined" sx={{ mb: 3, bgcolor: 'grey.50' }}>
+              <CardContent>
+                <Typography variant="h6" gutterBottom>
+                  Формат файла:
+                </Typography>
+                <Typography variant="body2" component="div" sx={{ mb: 2 }}>
+                  <strong>Для Excel:</strong> Первая строка должна содержать заголовки:
+                </Typography>
+                <List dense>
+                  <ListItem>
+                    <ListItemText
+                      primary="Столбец 1: Имя (обязательно)"
+                      secondary="Полное имя клиента"
+                    />
+                  </ListItem>
+                  <ListItem>
+                    <ListItemText
+                      primary="Столбец 2: Телефон (опционально)"
+                      secondary="Номер телефона"
+                    />
+                  </ListItem>
+                  <ListItem>
+                    <ListItemText
+                      primary="Столбец 3: Email (опционально)"
+                      secondary="Email адрес"
+                    />
+                  </ListItem>
+                  <ListItem>
+                    <ListItemText
+                      primary="Столбец 4: Telegram ID (опционально)"
+                      secondary="Telegram ID клиента"
+                    />
+                  </ListItem>
+                  <ListItem>
+                    <ListItemText
+                      primary="Столбец 5: WhatsApp ID (опционально)"
+                      secondary="WhatsApp ID клиента"
+                    />
+                  </ListItem>
+                  <ListItem>
+                    <ListItemText
+                      primary="Столбец 6: Instagram ID (опционально)"
+                      secondary="Instagram ID клиента"
+                    />
+                  </ListItem>
+                  <ListItem>
+                    <ListItemText
+                      primary="Столбец 7: Заметки (опционально)"
+                      secondary="Дополнительные заметки"
+                    />
+                  </ListItem>
+                  <ListItem>
+                    <ListItemText
+                      primary="Столбец 8: Статус (опционально)"
+                      secondary="active, inactive или blocked (по умолчанию: active)"
+                    />
+                  </ListItem>
+                </List>
+                <Divider sx={{ my: 2 }} />
+                <Typography variant="body2" component="div" sx={{ mb: 2 }}>
+                  <strong>Для CSV:</strong> Используйте заголовки на русском или английском:
+                </Typography>
+                <Typography variant="body2" component="code" sx={{ display: 'block', p: 1, bgcolor: 'grey.100', borderRadius: 1 }}>
+                  name,phone,email,telegramId,whatsappId,instagramId,notes,status
+                </Typography>
+                <Typography variant="body2" component="code" sx={{ display: 'block', p: 1, bgcolor: 'grey.100', borderRadius: 1, mt: 1 }}>
+                  Имя,Телефон,Email,Telegram ID,WhatsApp ID,Instagram ID,Заметки,Статус
+                </Typography>
+              </CardContent>
+            </Card>
+
+            {/* File Input */}
+            <Box sx={{ mb: 2 }}>
+              <input
+                accept=".xlsx,.xls,.csv"
+                style={{ display: 'none' }}
+                id="import-file-input"
+                type="file"
+                onChange={handleFileSelect}
+              />
+              <label htmlFor="import-file-input">
+                <Button variant="outlined" component="span" startIcon={<Upload />} fullWidth>
+                  {importFile ? importFile.name : 'Выбрать файл'}
+                </Button>
+              </label>
+            </Box>
+
+            {/* Import Result */}
+            {importResult && (
+              <Box sx={{ mt: 2 }}>
+                <Alert severity={importResult.failed > 0 ? 'warning' : 'success'} sx={{ mb: 2 }}>
+                  Импортировано: {importResult.success}, Ошибок: {importResult.failed}
+                </Alert>
+                {importResult.errors.length > 0 && (
+                  <Box>
+                    <Typography variant="subtitle2" gutterBottom>
+                      Ошибки:
+                    </Typography>
+                    <List dense>
+                      {importResult.errors.slice(0, 10).map((error, idx) => (
+                        <ListItem key={idx}>
+                          <ListItemText
+                            primary={`Строка ${error.row}: ${error.error}`}
+                            primaryTypographyProps={{ variant: 'body2' }}
+                          />
+                        </ListItem>
+                      ))}
+                      {importResult.errors.length > 10 && (
+                        <ListItem>
+                          <ListItemText
+                            primary={`... и еще ${importResult.errors.length - 10} ошибок`}
+                            primaryTypographyProps={{ variant: 'body2', color: 'text.secondary' }}
+                          />
+                        </ListItem>
+                      )}
+                    </List>
+                  </Box>
+                )}
+              </Box>
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCloseImportDialog}>Закрыть</Button>
+            <Button
+              onClick={handleImport}
+              variant="contained"
+              disabled={!importFile || importing}
+              startIcon={importing ? <CircularProgress size={20} /> : <Upload />}
+            >
+              {importing ? 'Импорт...' : 'Импортировать'}
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Container>
     </Box>
   );

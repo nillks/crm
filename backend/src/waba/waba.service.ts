@@ -16,8 +16,11 @@ import { WABACredentials } from '../entities/waba-credentials.entity';
 import { CreateWABATemplateDto } from './dto/create-waba-template.dto';
 import { UpdateWABATemplateDto } from './dto/update-waba-template.dto';
 import { CreateWABACampaignDto } from './dto/create-waba-campaign.dto';
+import { CreateMassWABACampaignDto } from './dto/create-mass-campaign.dto';
 import { CreateWABACredentialsDto, UpdateWABACredentialsDto } from './dto/waba-credentials.dto';
+import { CampaignStatsFilterDto, CampaignStatsResponse } from './dto/campaign-stats.dto';
 import { AIService } from '../ai/ai.service';
+import { ClientsService } from '../clients/clients.service';
 import * as crypto from 'crypto';
 
 @Injectable()
@@ -36,6 +39,7 @@ export class WABAService implements OnModuleInit {
     @InjectRepository(WABACredentials)
     private credentialsRepository: Repository<WABACredentials>,
     private aiService: AIService,
+    private clientsService: ClientsService,
   ) {
     // Ключ шифрования из env (в production должен быть в Vault)
     this.encryptionKey = this.configService.get('WABA_ENCRYPTION_KEY', 'default-key-change-in-production');
@@ -85,6 +89,111 @@ export class WABAService implements OnModuleInit {
     const credentials = await this.getActiveCredentials();
     if (!credentials) return null;
     return this.decrypt(credentials.accessToken);
+  }
+
+  /**
+   * Проверить баланс аккаунта через Facebook API
+   */
+  async checkBalance(): Promise<{ balance: number; currency: string } | null> {
+    const credentials = await this.getActiveCredentials();
+    if (!credentials) {
+      return null;
+    }
+
+    const accessToken = this.decrypt(credentials.accessToken);
+
+    try {
+      // Получаем информацию о бизнес-аккаунте с балансом
+      const response = await firstValueFrom(
+        this.httpService.get(`${this.facebookApiUrl}/${credentials.businessAccountId}`, {
+          params: {
+            access_token: accessToken,
+            fields: 'extended_credits',
+          },
+        }),
+      );
+
+      // Альтернативный способ: проверка через phone number
+      let balance = 0;
+      let currency = 'USD';
+
+      if (response.data.extended_credits) {
+        // Если есть информация о кредитах
+        const credits = response.data.extended_credits.data;
+        if (credits && credits.length > 0) {
+          balance = parseFloat(credits[0].amount) || 0;
+          currency = credits[0].currency || 'USD';
+        }
+      } else {
+        // Пробуем получить баланс через phone number
+        try {
+          const phoneResponse = await firstValueFrom(
+            this.httpService.get(`${this.facebookApiUrl}/${credentials.phoneNumberId}`, {
+              params: {
+                access_token: accessToken,
+                fields: 'account_mode,balance',
+              },
+            }),
+          );
+          if (phoneResponse.data.balance) {
+            balance = parseFloat(phoneResponse.data.balance) || 0;
+          }
+        } catch (phoneError) {
+          this.logger.warn('Could not get balance from phone number, using default');
+        }
+      }
+
+      // Обновляем баланс в credentials
+      credentials.balance = balance;
+      credentials.balanceLastChecked = new Date();
+      await this.credentialsRepository.save(credentials);
+
+      // Проверяем порог автопаузы
+      if (credentials.autoPauseThreshold > 0 && balance < credentials.autoPauseThreshold) {
+        if (!credentials.isPaused) {
+          credentials.isPaused = true;
+          await this.credentialsRepository.save(credentials);
+          this.logger.warn(
+            `⚠️ WABA auto-paused: balance ${balance} is below threshold ${credentials.autoPauseThreshold}`,
+          );
+        }
+      } else if (credentials.isPaused && balance >= credentials.autoPauseThreshold) {
+        credentials.isPaused = false;
+        await this.credentialsRepository.save(credentials);
+        this.logger.log(`✅ WABA auto-resumed: balance ${balance} is above threshold`);
+      }
+
+      return { balance, currency };
+    } catch (error: any) {
+      this.logger.error('Failed to check WABA balance:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Проверить, можно ли отправлять рассылки (не приостановлены ли из-за баланса)
+   */
+  private async canSendCampaigns(): Promise<boolean> {
+    const credentials = await this.getActiveCredentials();
+    if (!credentials) {
+      return false;
+    }
+
+    // Если автопауза включена и баланс ниже порога
+    if (credentials.isPaused) {
+      return false;
+    }
+
+    // Проверяем баланс, если не проверяли более часа
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    if (!credentials.balanceLastChecked || credentials.balanceLastChecked < oneHourAgo) {
+      const balanceInfo = await this.checkBalance();
+      if (balanceInfo && balanceInfo.balance < (credentials.autoPauseThreshold || 0)) {
+        return false;
+      }
+    }
+
+    return true;
   }
 
   /**
@@ -224,6 +333,82 @@ export class WABAService implements OnModuleInit {
   }
 
   /**
+   * Создать массовую рассылку с фильтрацией клиентов
+   */
+  async createMassCampaign(
+    dto: CreateMassWABACampaignDto,
+    createdById: string,
+  ): Promise<{ campaigns: WABACampaign[]; totalClients: number }> {
+    const template = await this.findTemplateById(dto.templateId);
+
+    // Получаем клиентов по фильтрам
+    // Убираем пагинацию для получения всех клиентов
+    const filterDto = {
+      ...dto.clientFilters,
+      page: 1,
+      limit: dto.limit || 1000, // По умолчанию максимум 1000 клиентов
+    };
+
+    const clientsResult = await this.clientsService.findAll(filterDto);
+    const clients = clientsResult.data;
+
+    if (clients.length === 0) {
+      throw new BadRequestException('Не найдено клиентов по указанным фильтрам');
+    }
+
+    // Фильтруем клиентов, у которых есть WhatsApp ID или телефон
+    const validClients = clients.filter(
+      (client) => client.whatsappId || client.phone,
+    );
+
+    if (validClients.length === 0) {
+      throw new BadRequestException('У найденных клиентов нет WhatsApp ID или телефона');
+    }
+
+    this.logger.log(
+      `📧 Creating mass campaign for ${validClients.length} clients (filtered from ${clients.length})`,
+    );
+
+    // Создаем кампании для каждого клиента
+    const campaigns: WABACampaign[] = [];
+    const scheduledAt = dto.scheduledAt ? new Date(dto.scheduledAt) : new Date();
+
+    for (const client of validClients) {
+      const campaign = this.campaignsRepository.create({
+        templateId: dto.templateId,
+        clientId: client.id,
+        createdById,
+        parameters: dto.parameters,
+        scheduledAt,
+        status: WABACampaignStatus.PENDING,
+        metadata: {
+          massCampaign: true,
+          originalFilters: dto.clientFilters,
+        },
+      });
+
+      const saved = await this.campaignsRepository.save(campaign);
+      campaigns.push(saved);
+
+      // Если статус SCHEDULED и время пришло, отправляем сразу
+      if (saved.status === WABACampaignStatus.SCHEDULED && saved.scheduledAt <= new Date()) {
+        try {
+          await this.sendCampaign(saved.id);
+        } catch (error) {
+          this.logger.error(`Failed to send campaign ${saved.id}: ${error.message}`);
+        }
+      }
+    }
+
+    this.logger.log(`✅ Mass WABA campaign created: ${campaigns.length} campaigns`);
+
+    return {
+      campaigns,
+      totalClients: validClients.length,
+    };
+  }
+
+  /**
    * Отправить кампанию
    */
   async sendCampaign(campaignId: string): Promise<void> {
@@ -243,6 +428,17 @@ export class WABAService implements OnModuleInit {
     const credentials = await this.getActiveCredentials();
     if (!credentials) {
       throw new BadRequestException('WABA credentials not configured');
+    }
+
+    // Проверяем, можно ли отправлять (баланс и автопауза)
+    const canSend = await this.canSendCampaigns();
+    if (!canSend) {
+      const balanceInfo = await this.checkBalance();
+      const balance = balanceInfo?.balance ?? credentials.balance ?? 0;
+      const threshold = credentials.autoPauseThreshold ?? 0;
+      throw new BadRequestException(
+        `Рассылки приостановлены. Баланс: ${balance}, порог: ${threshold}. Пополните баланс для продолжения рассылок.`,
+      );
     }
 
     const accessToken = this.decrypt(credentials.accessToken);
@@ -329,6 +525,138 @@ export class WABAService implements OnModuleInit {
   }
 
   /**
+   * Получить детальную статистику по кампаниям
+   */
+  async getCampaignStats(filter: CampaignStatsFilterDto): Promise<CampaignStatsResponse> {
+    const queryBuilder = this.campaignsRepository.createQueryBuilder('campaign');
+
+    // Применяем фильтры
+    if (filter.templateId) {
+      queryBuilder.andWhere('campaign.templateId = :templateId', { templateId: filter.templateId });
+    }
+
+    if (filter.createdById) {
+      queryBuilder.andWhere('campaign.createdById = :createdById', { createdById: filter.createdById });
+    }
+
+    if (filter.startDate) {
+      queryBuilder.andWhere('campaign.createdAt >= :startDate', { startDate: filter.startDate });
+    }
+
+    if (filter.endDate) {
+      queryBuilder.andWhere('campaign.createdAt <= :endDate', { endDate: filter.endDate });
+    }
+
+    // Загружаем все кампании с нужными связями
+    const campaigns = await queryBuilder
+      .leftJoinAndSelect('campaign.template', 'template')
+      .leftJoinAndSelect('campaign.createdBy', 'createdBy')
+      .getMany();
+
+    // Подсчитываем общую статистику
+    const total = campaigns.length;
+    const pending = campaigns.filter((c) => c.status === WABACampaignStatus.PENDING).length;
+    const scheduled = campaigns.filter((c) => c.status === WABACampaignStatus.SCHEDULED).length;
+    const sent = campaigns.filter((c) => c.status === WABACampaignStatus.SENT).length;
+    const delivered = campaigns.filter((c) => c.status === WABACampaignStatus.DELIVERED).length;
+    const read = campaigns.filter((c) => c.status === WABACampaignStatus.READ).length;
+    const failed = campaigns.filter((c) => c.status === WABACampaignStatus.FAILED).length;
+
+    // Вычисляем проценты
+    const deliveryRate = sent > 0 ? (delivered / sent) * 100 : 0;
+    const readRate = delivered > 0 ? (read / delivered) * 100 : 0;
+    const failureRate = total > 0 ? (failed / total) * 100 : 0;
+
+    // Статистика по шаблонам
+    const templateMap = new Map<string, any>();
+    campaigns.forEach((campaign) => {
+      const templateId = campaign.templateId;
+      if (!templateMap.has(templateId)) {
+        templateMap.set(templateId, {
+          templateId,
+          templateName: campaign.template?.name || 'Unknown',
+          total: 0,
+          sent: 0,
+          delivered: 0,
+          read: 0,
+          failed: 0,
+        });
+      }
+      const stats = templateMap.get(templateId);
+      stats.total++;
+      if (campaign.status === WABACampaignStatus.SENT) stats.sent++;
+      if (campaign.status === WABACampaignStatus.DELIVERED) stats.delivered++;
+      if (campaign.status === WABACampaignStatus.READ) stats.read++;
+      if (campaign.status === WABACampaignStatus.FAILED) stats.failed++;
+    });
+    const byTemplate = Array.from(templateMap.values());
+
+    // Статистика по датам
+    const dateMap = new Map<string, any>();
+    campaigns.forEach((campaign) => {
+      const date = campaign.createdAt.toISOString().split('T')[0]; // YYYY-MM-DD
+      if (!dateMap.has(date)) {
+        dateMap.set(date, {
+          date,
+          total: 0,
+          sent: 0,
+          delivered: 0,
+          read: 0,
+          failed: 0,
+        });
+      }
+      const stats = dateMap.get(date);
+      stats.total++;
+      if (campaign.status === WABACampaignStatus.SENT) stats.sent++;
+      if (campaign.status === WABACampaignStatus.DELIVERED) stats.delivered++;
+      if (campaign.status === WABACampaignStatus.READ) stats.read++;
+      if (campaign.status === WABACampaignStatus.FAILED) stats.failed++;
+    });
+    const byDate = Array.from(dateMap.values()).sort((a, b) => a.date.localeCompare(b.date));
+
+    // Статистика по создателям
+    const creatorMap = new Map<string, any>();
+    campaigns.forEach((campaign) => {
+      if (!campaign.createdById) return;
+      const creatorId = campaign.createdById;
+      if (!creatorMap.has(creatorId)) {
+        creatorMap.set(creatorId, {
+          creatorId,
+          creatorEmail: campaign.createdBy?.email || 'Unknown',
+          total: 0,
+          sent: 0,
+          delivered: 0,
+          read: 0,
+          failed: 0,
+        });
+      }
+      const stats = creatorMap.get(creatorId);
+      stats.total++;
+      if (campaign.status === WABACampaignStatus.SENT) stats.sent++;
+      if (campaign.status === WABACampaignStatus.DELIVERED) stats.delivered++;
+      if (campaign.status === WABACampaignStatus.READ) stats.read++;
+      if (campaign.status === WABACampaignStatus.FAILED) stats.failed++;
+    });
+    const byCreator = Array.from(creatorMap.values());
+
+    return {
+      total,
+      pending,
+      scheduled,
+      sent,
+      delivered,
+      read,
+      failed,
+      deliveryRate: Math.round(deliveryRate * 100) / 100,
+      readRate: Math.round(readRate * 100) / 100,
+      failureRate: Math.round(failureRate * 100) / 100,
+      byTemplate,
+      byDate,
+      byCreator,
+    };
+  }
+
+  /**
    * Сохранить credentials
    */
   async saveCredentials(dto: CreateWABACredentialsDto): Promise<WABACredentials> {
@@ -340,9 +668,14 @@ export class WABAService implements OnModuleInit {
       accessToken: this.encrypt(dto.accessToken),
       appSecret: dto.appSecret ? this.encrypt(dto.appSecret) : null,
       isActive: dto.isActive !== undefined ? dto.isActive : true,
+      autoPauseThreshold: dto.autoPauseThreshold ?? 0,
     });
 
     const saved = await this.credentialsRepository.save(credentials);
+    
+    // Проверяем баланс при сохранении
+    await this.checkBalance();
+    
     this.logger.log('✅ WABA credentials saved');
 
     return saved;

@@ -9,6 +9,7 @@ import { WABACredentials } from '../entities/waba-credentials.entity';
 import { Client } from '../entities/client.entity';
 import { User } from '../entities/user.entity';
 import { AIModule } from '../ai/ai.module';
+import { ClientsModule } from '../clients/clients.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { AIModule } from '../ai/ai.module';
     }),
     TypeOrmModule.forFeature([WABATemplate, WABACampaign, WABACredentials, Client, User]),
     AIModule,
+    ClientsModule,
   ],
   controllers: [WABAController],
   providers: [WABAService],

@@ -648,6 +648,12 @@ export const WABAPage: React.FC = () => {
           <DialogTitle>Создать рассылку</DialogTitle>
           <DialogContent>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
+              {templates.filter((t) => t.status === WABATemplateStatus.APPROVED).length === 0 && (
+                <Alert severity="info">
+                  Нет одобренных шаблонов. Создайте шаблон и дождитесь статуса &quot;Approved&quot; (или вручную
+                  измените статус в форме редактирования), чтобы использовать его в рассылке.
+                </Alert>
+              )}
               <FormControl fullWidth>
                 <InputLabel>Шаблон</InputLabel>
                 <Select
@@ -655,6 +661,7 @@ export const WABAPage: React.FC = () => {
                   onChange={(e) => setCampaignFormData({ ...campaignFormData, templateId: e.target.value })}
                   label="Шаблон"
                   required
+                  disabled={templates.filter((t) => t.status === WABATemplateStatus.APPROVED).length === 0}
                 >
                   {templates
                     .filter((t) => t.status === WABATemplateStatus.APPROVED)
@@ -663,6 +670,11 @@ export const WABAPage: React.FC = () => {
                         {template.name}
                       </MenuItem>
                     ))}
+                  {templates.filter((t) => t.status === WABATemplateStatus.APPROVED).length === 0 && (
+                    <MenuItem disabled value="">
+                      Нет доступных шаблонов
+                    </MenuItem>
+                  )}
                 </Select>
               </FormControl>
               <FormControl fullWidth>
