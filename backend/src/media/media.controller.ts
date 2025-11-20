@@ -8,8 +8,10 @@ import {
   UseInterceptors,
   UploadedFile,
   Query,
+  Body,
   Res,
   HttpStatus,
+  BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
@@ -27,6 +29,14 @@ export class MediaController {
   /**
    * Загрузить файл
    * POST /media/upload
+   * Параметры передаются через FormData:
+   * - file: файл
+   * - clientId: UUID клиента (опционально, если указан messageId)
+   * - messageId: UUID сообщения (опционально, если указан clientId)
+   * - ticketId: UUID тикета (опционально)
+   * 
+   * Примечание: При использовании FileInterceptor, другие поля FormData
+   * доступны через @Body(), но они приходят как строки
    */
   @Post('upload')
   @UseInterceptors(
@@ -38,9 +48,19 @@ export class MediaController {
   )
   async uploadFile(
     @UploadedFile() file: Express.Multer.File,
-    @Query() dto: UploadFileDto,
+    @Body() body: any,
   ) {
-    return this.mediaService.uploadFile(file, dto.clientId, dto.messageId, dto.ticketId);
+    if (!file) {
+      throw new BadRequestException('Файл не был загружен');
+    }
+    
+    // Параметры приходят через FormData, поэтому читаем из body
+    // Multer парсит FormData и помещает текстовые поля в body
+    const clientId = body.clientId || undefined;
+    const messageId = body.messageId || undefined;
+    const ticketId = body.ticketId || undefined;
+    
+    return this.mediaService.uploadFile(file, clientId, messageId, ticketId);
   }
 
   /**

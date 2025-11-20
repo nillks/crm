@@ -90,6 +90,14 @@ export const FileUpload: React.FC<FileUploadProps> = ({
   };
 
   const uploadFile = async (file: File) => {
+    // Проверка наличия clientId или messageId
+    if (!clientId && !messageId) {
+      const errorMsg = 'Необходимо указать clientId или messageId для загрузки файла';
+      setError(errorMsg);
+      if (onUploadError) onUploadError(errorMsg);
+      return;
+    }
+
     try {
       setUploading(true);
       setProgress(0);
