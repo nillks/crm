@@ -27,6 +27,12 @@ export class CreateWABACredentialsDto {
   @IsOptional()
   isActive?: boolean;
 
+  @IsNumber()
+  @IsOptional()
+  @Type(() => Number)
+  @Min(0)
+  autoPauseThreshold?: number; // Порог для автопаузы
+
   @IsObject()
   @IsOptional()
   metadata?: Record<string, any>;

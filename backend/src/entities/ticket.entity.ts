@@ -15,6 +15,7 @@ import { Comment } from './comment.entity';
 import { Message } from './message.entity';
 import { TransferHistory } from './transfer-history.entity';
 import { FunnelStage } from './funnel-stage.entity';
+import { SupportLine } from './support-line.entity';
 
 export enum TicketStatus {
   NEW = 'new',

@@ -13,6 +13,7 @@ import { MediaFile, MediaFileType } from '../entities/media-file.entity';
 import { Client } from '../entities/client.entity';
 import { Message } from '../entities/message.entity';
 import { Ticket } from '../entities/ticket.entity';
+import { CallLog } from '../entities/call-log.entity';
 import * as fs from 'fs';
 import * as path from 'path';
 import { promisify } from 'util';

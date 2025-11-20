@@ -245,8 +245,8 @@ export class ClientsService {
     const savedClient = await this.clientsRepository.save(client);
 
     // Автоматическое заполнение полей через AI, если есть описание или сообщения
-    if (createClientDto.notes || createClientDto.description) {
-      await this.autoFillClientFields(savedClient, createClientDto.notes || createClientDto.description || '');
+    if (createClientDto.notes) {
+      await this.autoFillClientFields(savedClient, createClientDto.notes || '');
     }
 
     return savedClient;
@@ -347,7 +347,9 @@ export class ClientsService {
     errors: Array<{ row: number; error: string }>;
   }> {
     const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.load(file.buffer);
+    // Преобразуем buffer в правильный тип
+    const buffer = file.buffer instanceof Buffer ? file.buffer : Buffer.from(file.buffer);
+    await workbook.xlsx.load(buffer as any);
 
     const worksheet = workbook.worksheets[0];
     if (!worksheet) {

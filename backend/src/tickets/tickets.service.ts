@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, FindOptionsWhere, ILike, Not } from 'typeorm';
-import { Ticket, TicketStatus } from '../entities/ticket.entity';
+import { Ticket, TicketStatus, TicketCategory } from '../entities/ticket.entity';
 import { Comment } from '../entities/comment.entity';
 import { TransferHistory } from '../entities/transfer-history.entity';
 import { User } from '../entities/user.entity';
@@ -216,7 +216,8 @@ export class TicketsService {
     let priority = createTicketDto.priority || 0;
 
     if (!category && createTicketDto.description) {
-      category = await this.classifyTicket(createTicketDto.description, createTicketDto.title);
+      const classifiedCategory = await this.classifyTicket(createTicketDto.description, createTicketDto.title);
+      category = classifiedCategory as TicketCategory;
     }
 
     // Автоматическое определение приоритета на основе категории и текста
@@ -497,7 +498,7 @@ export class TicketsService {
         operator3: 'линии №3',
       };
       
-      transferDescription = `на ${roleLabels[transferDto.toRoleName] || transferDto.toRoleName} (${toUser.name}${toUser.surname ? ` ${toUser.surname}` : ''})`;
+      transferDescription = `на ${roleLabels[transferDto.toRoleName] || transferDto.toRoleName} (${toUser.name})`;
     } else {
       throw new BadRequestException('Необходимо указать либо toUserId, либо toRoleName');
     }

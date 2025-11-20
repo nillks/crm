@@ -1,11 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between, Not } from 'typeorm';
+import { Repository, Between, Not, In } from 'typeorm';
 import { Ticket, TicketStatus } from '../entities/ticket.entity';
 import { Message, MessageDirection } from '../entities/message.entity';
 import { Call, CallStatus } from '../entities/call.entity';
 import { Task, TaskStatus } from '../entities/task.entity';
 import { User } from '../entities/user.entity';
+import { Client } from '../entities/client.entity';
 import { SLAMetricsDto } from './dto/sla-metrics.dto';
 import { KPIMetricsDto } from './dto/kpi-metrics.dto';
 import { ChannelAnalyticsDto } from './dto/channel-analytics.dto';
@@ -215,15 +216,11 @@ export class AnalyticsService {
   }>> {
     const period = this.getPeriod(startDate, endDate);
 
-    // Получаем всех операторов
-    const users = await this.usersRepository.find({
+    // Получаем всех операторов (исключаем админов)
+    const allUsers = await this.usersRepository.find({
       relations: ['role'],
-      where: {
-        role: {
-          name: Not('admin'),
-        },
-      },
     });
+    const users = allUsers.filter((user) => user.role?.name !== 'admin');
 
     const operatorKPIs = await Promise.all(
       users.map(async (user) => {
@@ -276,14 +273,24 @@ export class AnalyticsService {
             ? resolutionTimes.reduce((sum, time) => sum + time, 0) / resolutionTimes.length
             : 0;
 
-        // Сообщения отправленные
-        const messagesSent = await this.messagesRepository.count({
+        // Сообщения отправленные (через тикеты оператора)
+        const operatorTickets = await this.ticketsRepository.find({
           where: {
-            userId: operatorId,
-            direction: MessageDirection.OUTBOUND,
+            assignedToId: operatorId,
             createdAt: Between(period.startDate, period.endDate),
           },
+          select: ['id'],
         });
+        const ticketIds = operatorTickets.map((t) => t.id);
+        const messagesSent = ticketIds.length > 0
+          ? await this.messagesRepository.count({
+              where: {
+                ticketId: In(ticketIds),
+                direction: MessageDirection.OUTBOUND,
+                createdAt: Between(period.startDate, period.endDate),
+              },
+            })
+          : 0;
 
         // Звонки обработанные
         const callsHandled = await this.callsRepository.count({
