@@ -28,6 +28,11 @@ import {
   Paper,
   Autocomplete,
   Stack,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Divider,
 } from '@mui/material';
 import {
   ArrowBack,
@@ -542,6 +547,20 @@ export const ClientCardPage: React.FC = () => {
                     onChange={(e) => setFormData({ ...formData, instagramId: e.target.value })}
                   />
                 </Grid>
+                <Grid item xs={12} md={6}>
+                  <FormControl fullWidth>
+                    <InputLabel>Статус</InputLabel>
+                    <Select
+                      value={formData.status || 'active'}
+                      label="Статус"
+                      onChange={(e) => setFormData({ ...formData, status: e.target.value as 'active' | 'inactive' | 'blocked' })}
+                    >
+                      <MenuItem value="active">Активный</MenuItem>
+                      <MenuItem value="inactive">Неактивный</MenuItem>
+                      <MenuItem value="blocked">Заблокирован</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
                 <Grid item xs={12}>
                   <TextField
                     fullWidth
@@ -577,55 +596,73 @@ export const ClientCardPage: React.FC = () => {
                   />
                 </Grid>
                 <Grid item xs={12}>
-                  <Typography variant="subtitle2" gutterBottom>
+                  <Divider sx={{ my: 2 }} />
+                  <Typography variant="h6" gutterBottom>
                     Кастомные поля
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    Добавьте дополнительные поля для хранения специфичной информации о клиенте
                   </Typography>
                   <Stack spacing={2}>
                     {Object.entries(formData.customFields || {}).map(([key, value], idx) => (
-                      <Box key={idx} sx={{ display: 'flex', gap: 2 }}>
-                        <TextField
-                          label="Ключ"
-                          value={key}
-                          onChange={(e) => {
-                            const newFields = { ...formData.customFields };
-                            delete newFields[key];
-                            newFields[e.target.value] = value;
-                            setFormData({ ...formData, customFields: newFields });
-                          }}
-                          size="small"
-                          sx={{ flex: 1 }}
-                        />
-                        <TextField
-                          label="Значение"
-                          value={String(value)}
-                          onChange={(e) => {
-                            setFormData({
-                              ...formData,
-                              customFields: {
-                                ...formData.customFields,
-                                [key]: e.target.value,
-                              },
-                            });
-                          }}
-                          size="small"
-                          sx={{ flex: 1 }}
-                        />
-                        <IconButton
-                          onClick={() => {
-                            const newFields = { ...formData.customFields };
-                            delete newFields[key];
-                            setFormData({ ...formData, customFields: newFields });
-                          }}
-                          color="error"
-                        >
-                          <Cancel />
-                        </IconButton>
-                      </Box>
+                      <Card key={idx} variant="outlined" sx={{ p: 2 }}>
+                        <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+                          <TextField
+                            label="Название поля"
+                            placeholder="Например: Компания, Должность, Город"
+                            value={key}
+                            onChange={(e) => {
+                              const newFields = { ...formData.customFields };
+                              delete newFields[key];
+                              newFields[e.target.value] = value;
+                              setFormData({ ...formData, customFields: newFields });
+                            }}
+                            size="small"
+                            sx={{ flex: 1 }}
+                            helperText="Введите название поля"
+                          />
+                          <TextField
+                            label="Значение"
+                            placeholder="Введите значение"
+                            value={String(value)}
+                            onChange={(e) => {
+                              setFormData({
+                                ...formData,
+                                customFields: {
+                                  ...formData.customFields,
+                                  [key]: e.target.value,
+                                },
+                              });
+                            }}
+                            size="small"
+                            sx={{ flex: 1 }}
+                            multiline
+                            rows={2}
+                          />
+                          <IconButton
+                            onClick={() => {
+                              const newFields = { ...formData.customFields };
+                              delete newFields[key];
+                              setFormData({ ...formData, customFields: newFields });
+                            }}
+                            color="error"
+                            sx={{ mt: 0.5 }}
+                            title="Удалить поле"
+                          >
+                            <Delete />
+                          </IconButton>
+                        </Box>
+                      </Card>
                     ))}
+                    {(!formData.customFields || Object.keys(formData.customFields).length === 0) && (
+                      <Alert severity="info" sx={{ borderRadius: 2 }}>
+                        Кастомные поля не добавлены. Нажмите кнопку ниже, чтобы добавить новое поле.
+                      </Alert>
+                    )}
                     <Button
                       startIcon={<Add />}
                       onClick={() => {
-                        const newKey = `field_${Date.now()}`;
+                        const newKey = `Новое поле ${Object.keys(formData.customFields || {}).length + 1}`;
                         setFormData({
                           ...formData,
                           customFields: {
@@ -635,9 +672,9 @@ export const ClientCardPage: React.FC = () => {
                         });
                       }}
                       variant="outlined"
-                      size="small"
+                      sx={{ borderRadius: 2 }}
                     >
-                      Добавить поле
+                      Добавить кастомное поле
                     </Button>
                   </Stack>
                 </Grid>
