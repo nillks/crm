@@ -30,6 +30,13 @@ import {
   ListItemText,
   Divider,
   Link,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Autocomplete,
+  Grid,
+  Paper,
 } from '@mui/material';
 import {
   Search,
@@ -51,6 +58,9 @@ export const ClientsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('');
+  const [tagsFilter, setTagsFilter] = useState<string[]>([]);
+  const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
@@ -68,14 +78,33 @@ export const ClientsPage: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await clientsService.getClients({
+      const filters: FilterClientsDto = {
         page,
         limit,
         ...params,
-      });
+      };
+      
+      // Добавляем фильтры
+      if (statusFilter) {
+        filters.status = statusFilter as 'active' | 'inactive' | 'blocked';
+      }
+      if (tagsFilter.length > 0) {
+        filters.tags = tagsFilter.join(',');
+      }
+      
+      const response = await clientsService.getClients(filters);
       setClients(response.data);
       setTotalPages(response.totalPages);
       setTotal(response.total);
+      
+      // Собираем уникальные теги из всех клиентов для автокомплита
+      const allTags = new Set<string>();
+      response.data.forEach((client) => {
+        if (client.tags) {
+          client.tags.forEach((tag) => allTags.add(tag));
+        }
+      });
+      setAvailableTags(Array.from(allTags));
     } catch (err: any) {
       setError(getErrorMessage(err));
     } finally {
@@ -86,11 +115,29 @@ export const ClientsPage: React.FC = () => {
   useEffect(() => {
     loadClients();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page]);
+  }, [page, statusFilter, tagsFilter]);
 
   const handleSearch = () => {
     setPage(1);
     loadClients({ search });
+  };
+
+  const handleStatusFilterChange = (value: string) => {
+    setStatusFilter(value);
+    setPage(1);
+  };
+
+  const handleTagsFilterChange = (tags: string[]) => {
+    setTagsFilter(tags);
+    setPage(1);
+  };
+
+  const handleClearFilters = () => {
+    setSearch('');
+    setStatusFilter('');
+    setTagsFilter([]);
+    setPage(1);
+    loadClients();
   };
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -231,35 +278,120 @@ export const ClientsPage: React.FC = () => {
             </Box>
           </Box>
 
-          {/* Search */}
-          <Card sx={{ borderRadius: 3 }}>
+          {/* Search and Filters */}
+          <Card sx={{ borderRadius: 3, mb: 3 }}>
             <CardContent>
-              <TextField
-                fullWidth
-                placeholder="Поиск по имени, телефону или email..."
-                value={search}
-                onChange={handleSearchChange}
-                onKeyPress={handleKeyPress}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <Search />
-                    </InputAdornment>
-                  ),
-                  endAdornment: (
-                    <InputAdornment position="end">
+              <Grid container spacing={2}>
+                {/* Search */}
+                <Grid item xs={12} md={4}>
+                  <TextField
+                    fullWidth
+                    placeholder="Поиск по имени, телефону или email..."
+                    value={search}
+                    onChange={handleSearchChange}
+                    onKeyPress={handleKeyPress}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <Search />
+                        </InputAdornment>
+                      ),
+                    }}
+                    sx={{ borderRadius: 2 }}
+                  />
+                </Grid>
+                
+                {/* Status Filter */}
+                <Grid item xs={12} md={3}>
+                  <FormControl fullWidth>
+                    <InputLabel>Статус</InputLabel>
+                    <Select
+                      value={statusFilter}
+                      label="Статус"
+                      onChange={(e) => handleStatusFilterChange(e.target.value)}
+                    >
+                      <MenuItem value="">Все статусы</MenuItem>
+                      <MenuItem value="active">Активный</MenuItem>
+                      <MenuItem value="inactive">Неактивный</MenuItem>
+                      <MenuItem value="blocked">Заблокирован</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+                
+                {/* Tags Filter */}
+                <Grid item xs={12} md={4}>
+                  <Autocomplete
+                    multiple
+                    options={availableTags}
+                    value={tagsFilter}
+                    onChange={(_, newValue) => handleTagsFilterChange(newValue)}
+                    freeSolo
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label="Теги"
+                        placeholder="Выберите или введите теги"
+                      />
+                    )}
+                    renderTags={(value, getTagProps) =>
+                      value.map((option, index) => (
+                        <Chip
+                          label={option}
+                          {...getTagProps({ index })}
+                          key={option}
+                          size="small"
+                        />
+                      ))
+                    }
+                  />
+                </Grid>
+                
+                {/* Action Buttons */}
+                <Grid item xs={12} md={1}>
+                  <Box sx={{ display: 'flex', gap: 1, height: '100%' }}>
+                    <Button
+                      variant="contained"
+                      onClick={handleSearch}
+                      sx={{ borderRadius: 2, minWidth: 'auto', flex: 1 }}
+                    >
+                      Найти
+                    </Button>
+                    {(statusFilter || tagsFilter.length > 0 || search) && (
                       <Button
-                        variant="contained"
-                        onClick={handleSearch}
-                        sx={{ borderRadius: 2 }}
+                        variant="outlined"
+                        onClick={handleClearFilters}
+                        sx={{ borderRadius: 2, minWidth: 'auto' }}
+                        title="Очистить фильтры"
                       >
-                        Найти
+                        ✕
                       </Button>
-                    </InputAdornment>
-                  ),
-                }}
-                sx={{ borderRadius: 2 }}
-              />
+                    )}
+                  </Box>
+                </Grid>
+              </Grid>
+              
+              {/* Active Filters Display */}
+              {(statusFilter || tagsFilter.length > 0) && (
+                <Box sx={{ mt: 2, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                  {statusFilter && (
+                    <Chip
+                      label={`Статус: ${getStatusLabel(statusFilter)}`}
+                      onDelete={() => handleStatusFilterChange('')}
+                      color="primary"
+                      size="small"
+                    />
+                  )}
+                  {tagsFilter.map((tag) => (
+                    <Chip
+                      key={tag}
+                      label={`Тег: ${tag}`}
+                      onDelete={() => handleTagsFilterChange(tagsFilter.filter((t) => t !== tag))}
+                      color="primary"
+                      size="small"
+                    />
+                  ))}
+                </Box>
+              )}
             </CardContent>
           </Card>
         </Box>
