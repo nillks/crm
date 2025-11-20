@@ -310,7 +310,7 @@ export class TicketsService {
         throw new NotFoundException(`Пользователь с ID ${transferDto.toUserId} не найден`);
       }
 
-      transferDescription = `оператору ${toUser.name}${toUser.surname ? ` ${toUser.surname}` : ''}`;
+      transferDescription = `оператору ${toUser.name} (${toUser.email})`;
     }
     // Если указана линия (роль)
     else if (transferDto.toRoleName) {

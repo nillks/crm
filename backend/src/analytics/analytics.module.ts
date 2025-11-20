@@ -7,9 +7,10 @@ import { Message } from '../entities/message.entity';
 import { Call } from '../entities/call.entity';
 import { Task } from '../entities/task.entity';
 import { User } from '../entities/user.entity';
+import { Client } from '../entities/client.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Ticket, Message, Call, Task, User])],
+  imports: [TypeOrmModule.forFeature([Ticket, Message, Call, Task, User, Client])],
   controllers: [AnalyticsController],
   providers: [AnalyticsService],
   exports: [AnalyticsService],

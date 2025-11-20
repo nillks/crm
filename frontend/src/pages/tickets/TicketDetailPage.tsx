@@ -63,6 +63,28 @@ export const TicketDetailPage: React.FC = () => {
   const [userSearchQuery, setUserSearchQuery] = useState('');
   const [userSearchResults, setUserSearchResults] = useState<any[]>([]);
   const [searchingUsers, setSearchingUsers] = useState(false);
+
+  // Поиск пользователей при вводе
+  useEffect(() => {
+    if (userSearchQuery.length >= 2) {
+      const searchTimeout = setTimeout(async () => {
+        try {
+          setSearchingUsers(true);
+          const results = await ticketsService.searchUsersForTransfer(userSearchQuery);
+          setUserSearchResults(results);
+        } catch (err) {
+          console.error('Ошибка поиска пользователей:', err);
+          setUserSearchResults([]);
+        } finally {
+          setSearchingUsers(false);
+        }
+      }, 300); // Debounce 300ms
+
+      return () => clearTimeout(searchTimeout);
+    } else {
+      setUserSearchResults([]);
+    }
+  }, [userSearchQuery]);
   const [newComment, setNewComment] = useState<CreateCommentDto>({ content: '', isInternal: false });
   const [statusChangeDialogOpen, setStatusChangeDialogOpen] = useState(false);
   const [newStatus, setNewStatus] = useState<string>('');
@@ -602,39 +624,46 @@ export const TicketDetailPage: React.FC = () => {
             </Tabs>
 
             {transferTab === 0 ? (
-              <Autocomplete
-                options={userSearchResults}
-                getOptionLabel={(option) => `${option.name}${option.surname ? ` ${option.surname}` : ''} (${option.email})`}
-                loading={searchingUsers}
-                onInputChange={(_, value) => setUserSearchQuery(value)}
-                onChange={(_, value) => {
-                  setTransferData({ ...transferData, toUserId: value?.id, toRoleName: undefined });
-                }}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label="Поиск пользователя по имени или фамилии"
-                    placeholder="Начните вводить имя..."
-                    fullWidth
-                  />
-                )}
-                renderOption={(props, option) => (
-                  <Box component="li" {...props}>
-                    <Avatar sx={{ mr: 2, width: 32, height: 32 }}>
-                      {option.name?.charAt(0).toUpperCase() || 'U'}
-                    </Avatar>
-                    <Box>
-                      <Typography variant="body2">
-                        {option.name}{option.surname ? ` ${option.surname}` : ''}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {option.email} • {option.role?.name}
-                      </Typography>
+              <Box sx={{ mt: 2 }}>
+                <Autocomplete
+                  options={userSearchResults}
+                  getOptionLabel={(option) => `${option.name} (${option.email})`}
+                  loading={searchingUsers}
+                  inputValue={userSearchQuery}
+                  onInputChange={(_, value) => setUserSearchQuery(value)}
+                  onChange={(_, value) => {
+                    setTransferData({ ...transferData, toUserId: value?.id, toRoleName: undefined });
+                  }}
+                  noOptionsText={userSearchQuery.length < 2 ? 'Введите минимум 2 символа для поиска' : 'Пользователи не найдены'}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Поиск пользователя по имени или email"
+                      placeholder="Начните вводить имя или email..."
+                      fullWidth
+                      helperText="Введите имя или email пользователя для поиска"
+                    />
+                  )}
+                  renderOption={(props, option) => (
+                    <Box component="li" {...props} key={option.id}>
+                      <Avatar sx={{ mr: 2, width: 32, height: 32 }}>
+                        {option.name?.charAt(0).toUpperCase() || 'U'}
+                      </Avatar>
+                      <Box sx={{ flex: 1 }}>
+                        <Typography variant="body2" fontWeight={500}>
+                          {option.name}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {option.email}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                          Роль: {option.role?.name || 'Не указана'}
+                        </Typography>
+                      </Box>
                     </Box>
-                  </Box>
-                )}
-                sx={{ mt: 2 }}
-              />
+                  )}
+                />
+              </Box>
             ) : (
               <FormControl fullWidth sx={{ mt: 2 }}>
                 <InputLabel>Выберите линию</InputLabel>

@@ -25,6 +25,8 @@ export class AnalyticsService {
     private tasksRepository: Repository<Task>,
     @InjectRepository(User)
     private usersRepository: Repository<User>,
+    @InjectRepository(Client)
+    private clientsRepository: Repository<Client>,
   ) {}
 
   /**
@@ -146,6 +148,41 @@ export class AnalyticsService {
       },
     });
 
+    // Короткие звонки (менее 30 секунд)
+    const shortCallsThreshold = 30; // секунд
+    const allCalls = await this.callsRepository.find({
+      where: {
+        status: CallStatus.COMPLETED,
+        startedAt: Between(period.startDate, period.endDate),
+      },
+    });
+    const shortCalls = allCalls.filter((call) => {
+      if (!call.duration) return false;
+      return call.duration < shortCallsThreshold;
+    }).length;
+
+    // Необработанные клиенты (без тикетов за период)
+    const clientsWithTickets = await this.ticketsRepository
+      .createQueryBuilder('ticket')
+      .select('DISTINCT ticket.clientId', 'clientId')
+      .where('ticket.createdAt >= :startDate', { startDate: period.startDate })
+      .andWhere('ticket.createdAt <= :endDate', { endDate: period.endDate })
+      .getRawMany();
+    
+    const clientsWithTicketsIds = new Set(clientsWithTickets.map((c) => c.clientId));
+    
+    // Получаем всех клиентов, созданных до конца периода
+    const totalClients = await this.clientsRepository.count({
+      where: {
+        createdAt: Between(new Date(0), period.endDate),
+      },
+    });
+    
+    const unprocessedClients = totalClients - clientsWithTicketsIds.size;
+
+    // Безуспешные коммуникации (тикеты со статусом OVERDUE)
+    const unsuccessfulCommunications = overdueTickets;
+
     return {
       missedCalls,
       unreadMessages,
@@ -154,6 +191,9 @@ export class AnalyticsService {
       newTickets,
       inProgressTickets,
       overdueTickets,
+      shortCalls,
+      unprocessedClients,
+      unsuccessfulCommunications,
       period,
     };
   }

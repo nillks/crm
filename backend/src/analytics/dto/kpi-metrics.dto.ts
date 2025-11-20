@@ -35,6 +35,21 @@ export class KPIMetricsDto {
   overdueTickets: number;
 
   /**
+   * Количество коротких звонков (менее 30 секунд)
+   */
+  shortCalls?: number;
+
+  /**
+   * Количество необработанных клиентов (без тикетов)
+   */
+  unprocessedClients?: number;
+
+  /**
+   * Количество безуспешных коммуникаций (тикеты со статусом OVERDUE)
+   */
+  unsuccessfulCommunications?: number;
+
+  /**
    * Период расчёта
    */
   period: {

@@ -16,10 +16,11 @@ import {
   FormControl,
   InputLabel,
 } from '@mui/material';
-import { Visibility, VisibilityOff, PersonAdd } from '@mui/icons-material';
+import { Visibility, VisibilityOff, PersonAdd, Info } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import { getErrorMessage } from '../../utils/errorMessages';
 import api from '../../services/api';
+import { RolesInfoDialog } from '../../components/RolesInfoDialog';
 
 interface Role {
   id: string;
@@ -42,6 +43,7 @@ export const RegisterPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [roles, setRoles] = useState<Role[]>([]);
   const [loadingRoles, setLoadingRoles] = useState(true);
+  const [rolesInfoOpen, setRolesInfoOpen] = useState(false);
 
   useEffect(() => {
     // Загружаем роли из API
@@ -160,7 +162,17 @@ export const RegisterPage: React.FC = () => {
               />
 
               <FormControl fullWidth margin="normal" required>
-                <InputLabel>Роль</InputLabel>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                  <InputLabel>Роль</InputLabel>
+                  <Button
+                    size="small"
+                    startIcon={<Info />}
+                    onClick={() => setRolesInfoOpen(true)}
+                    sx={{ textTransform: 'none' }}
+                  >
+                    Узнать о ролях
+                  </Button>
+                </Box>
                 <Select
                   value={roleId}
                   onChange={(e) => setRoleId(e.target.value)}
@@ -251,6 +263,7 @@ export const RegisterPage: React.FC = () => {
           </CardContent>
         </Card>
       </Container>
+      <RolesInfoDialog open={rolesInfoOpen} onClose={() => setRolesInfoOpen(false)} />
     </Box>
   );
 };

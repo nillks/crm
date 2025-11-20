@@ -57,17 +57,20 @@ export class UsersService {
   }
 
   /**
-   * Поиск пользователей по имени или фамилии
+   * Поиск пользователей по имени или email
    */
   async searchByName(query: string): Promise<User[]> {
-    return this.usersRepository.find({
-      where: [
-        { name: ILike(`%${query}%`) },
-        { surname: ILike(`%${query}%`) },
-      ],
-      relations: ['role'],
-      take: 20, // Ограничиваем результаты
-    });
+    if (!query || query.length < 2) {
+      return [];
+    }
+    
+    return this.usersRepository
+      .createQueryBuilder('user')
+      .leftJoinAndSelect('user.role', 'role')
+      .where('user.name ILIKE :query', { query: `%${query}%` })
+      .orWhere('user.email ILIKE :query', { query: `%${query}%` })
+      .take(20)
+      .getMany();
   }
 
   /**
