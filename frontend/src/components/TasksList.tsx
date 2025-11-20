@@ -206,14 +206,6 @@ export const TasksList: React.FC<TasksListProps> = ({ clientId, onTaskCreated })
     }
   };
 
-  if (loading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-        <CircularProgress />
-      </Box>
-    );
-  }
-
   if (error) {
     return (
       <Alert severity="error" sx={{ mb: 2 }}>
@@ -224,15 +216,19 @@ export const TasksList: React.FC<TasksListProps> = ({ clientId, onTaskCreated })
 
   return (
     <>
-      <Box sx={{ mb: 2 }}>
+      <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Button
           variant="contained"
           startIcon={<Add />}
           onClick={() => setCreateDialogOpen(true)}
           sx={{ borderRadius: 2 }}
+          disabled={loading}
         >
           Создать задачу
         </Button>
+        {loading && (
+          <CircularProgress size={24} />
+        )}
       </Box>
 
       {tasks.length === 0 ? (
