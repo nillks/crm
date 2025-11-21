@@ -122,6 +122,8 @@ export const TicketDetailPage: React.FC = () => {
         clientId: '',
         channel: 'whatsapp',
         priority: 0,
+        category: undefined,
+        dueDate: undefined,
       });
       setLoading(false);
     }
@@ -142,6 +144,8 @@ export const TicketDetailPage: React.FC = () => {
         channel: data.channel,
         priority: data.priority,
         assignedToId: data.assignedToId,
+        category: (data as any).category,
+        dueDate: data.dueDate,
       });
       if (data.comments) {
         setComments(data.comments);
@@ -431,9 +435,55 @@ export const TicketDetailPage: React.FC = () => {
                         fullWidth
                         label="Приоритет (0-5)"
                         type="number"
-                        inputProps={{ min: 0, max: 5 }}
-                        value={formData.priority || 0}
-                        onChange={(e) => setFormData({ ...formData, priority: parseInt(e.target.value) || 0 })}
+                        inputProps={{ min: 0, max: 5, step: 1 }}
+                        value={formData.priority ?? ''}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value === '') {
+                            setFormData({ ...formData, priority: undefined });
+                          } else {
+                            const numValue = parseInt(value, 10);
+                            if (!isNaN(numValue) && numValue >= 0 && numValue <= 5) {
+                              setFormData({ ...formData, priority: numValue });
+                            }
+                          }
+                        }}
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <FormControl fullWidth>
+                        <InputLabel>Категория</InputLabel>
+                        <Select
+                          value={formData.category || ''}
+                          label="Категория"
+                          onChange={(e) => setFormData({ ...formData, category: e.target.value || undefined })}
+                        >
+                          <MenuItem value="">Не выбрана</MenuItem>
+                          <MenuItem value="technical">Техническая поддержка</MenuItem>
+                          <MenuItem value="sales">Продажи</MenuItem>
+                          <MenuItem value="complaint">Жалоба</MenuItem>
+                          <MenuItem value="question">Вопрос</MenuItem>
+                          <MenuItem value="request">Запрос</MenuItem>
+                          <MenuItem value="other">Другое</MenuItem>
+                        </Select>
+                      </FormControl>
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <TextField
+                        fullWidth
+                        label="Срок выполнения"
+                        type="datetime-local"
+                        value={formData.dueDate ? new Date(formData.dueDate).toISOString().slice(0, 16) : ''}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setFormData({ 
+                            ...formData, 
+                            dueDate: value ? new Date(value).toISOString() : undefined 
+                          });
+                        }}
+                        InputLabelProps={{
+                          shrink: true,
+                        }}
                       />
                     </Grid>
                     <Grid item xs={12}>
@@ -479,6 +529,35 @@ export const TicketDetailPage: React.FC = () => {
                         </Typography>
                         <Chip label={displayTicket?.priority || 0} size="small" />
                       </Grid>
+                      {(displayTicket as any)?.category && (
+                        <Grid item xs={12} md={6}>
+                          <Typography variant="body2" color="text.secondary" gutterBottom>
+                            Категория
+                          </Typography>
+                          <Chip 
+                            label={
+                              (displayTicket as any).category === 'technical' ? 'Техническая поддержка' :
+                              (displayTicket as any).category === 'sales' ? 'Продажи' :
+                              (displayTicket as any).category === 'complaint' ? 'Жалоба' :
+                              (displayTicket as any).category === 'question' ? 'Вопрос' :
+                              (displayTicket as any).category === 'request' ? 'Запрос' :
+                              (displayTicket as any).category === 'other' ? 'Другое' :
+                              (displayTicket as any).category
+                            } 
+                            size="small" 
+                          />
+                        </Grid>
+                      )}
+                      {displayTicket?.dueDate && (
+                        <Grid item xs={12} md={6}>
+                          <Typography variant="body2" color="text.secondary" gutterBottom>
+                            Срок выполнения
+                          </Typography>
+                          <Typography variant="body1">
+                            {new Date(displayTicket.dueDate).toLocaleString('ru-RU')}
+                          </Typography>
+                        </Grid>
+                      )}
                     </Grid>
                   </Box>
                 )}

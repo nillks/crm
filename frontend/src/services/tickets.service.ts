@@ -9,6 +9,7 @@ export interface Ticket {
   assignedToId?: string;
   status: 'new' | 'in_progress' | 'closed' | 'overdue';
   channel: 'whatsapp' | 'telegram' | 'instagram' | 'call';
+  category?: 'technical' | 'sales' | 'complaint' | 'question' | 'request' | 'other';
   priority: number;
   dueDate?: string;
   closedAt?: string;
@@ -54,6 +55,7 @@ export interface CreateTicketDto {
   clientId: string;
   assignedToId?: string;
   channel: 'whatsapp' | 'telegram' | 'instagram' | 'call';
+  category?: 'technical' | 'sales' | 'complaint' | 'question' | 'request' | 'other';
   priority?: number;
   dueDate?: string;
 }
@@ -63,6 +65,7 @@ export interface UpdateTicketDto {
   description?: string;
   assignedToId?: string;
   channel?: 'whatsapp' | 'telegram' | 'instagram' | 'call';
+  category?: 'technical' | 'sales' | 'complaint' | 'question' | 'request' | 'other';
   priority?: number;
   dueDate?: string;
 }
