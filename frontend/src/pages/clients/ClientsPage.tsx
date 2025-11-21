@@ -225,6 +225,8 @@ export const ClientsPage: React.FC = () => {
   const handleExport = async () => {
     try {
       setError(null);
+      console.log('[ClientsPage] Starting export...');
+      
       // Собираем текущие фильтры
       const filters: FilterClientsDto = {
         search: search || undefined,
@@ -233,9 +235,15 @@ export const ClientsPage: React.FC = () => {
         sortBy: 'createdAt',
         sortOrder: 'DESC',
       };
+      
+      console.log('[ClientsPage] Export filters:', filters);
       await clientsService.exportClients(filters);
+      console.log('[ClientsPage] Export completed successfully');
     } catch (err: any) {
-      setError(getErrorMessage(err));
+      console.error('[ClientsPage] Export error:', err);
+      const errorMessage = getErrorMessage(err);
+      console.error('[ClientsPage] Error message:', errorMessage);
+      setError(errorMessage);
     }
   };
 

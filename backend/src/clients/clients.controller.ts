@@ -60,22 +60,34 @@ export class ClientsController {
   @RequirePermissions({ action: Action.Read, subject: Subject.Client })
   async exportClients(
     @Query() filterDto: FilterClientsDto,
-    @Res({ passthrough: false }) res: Response,
+    @Res() res: Response,
   ) {
     try {
+      console.log('[ClientsController] Export request received, filters:', filterDto);
+      
       const buffer = await this.clientsService.exportToExcel(filterDto);
       const fileName = `clients_export_${Date.now()}.xlsx`;
+
+      console.log('[ClientsController] Buffer generated, size:', buffer.length, 'bytes');
 
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(fileName)}"`);
       res.setHeader('Content-Length', buffer.length.toString());
       res.send(buffer);
+      
+      console.log('[ClientsController] File sent successfully');
     } catch (error: any) {
-      // Важно: если используем @Res(), нужно явно отправить ответ
+      console.error('[ClientsController] Export error:', error);
+      console.error('[ClientsController] Error message:', error.message);
+      console.error('[ClientsController] Error stack:', error.stack);
+      
+      // Если заголовки еще не отправлены, отправляем JSON ошибку
       if (!res.headersSent) {
         res.status(500).json({
           message: error.message || 'Ошибка при экспорте клиентов',
         });
+      } else {
+        console.error('[ClientsController] Headers already sent, cannot send error response');
       }
     }
   }

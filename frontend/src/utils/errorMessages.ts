@@ -1,12 +1,25 @@
 // Утилита для преобразования ошибок API в русские сообщения
 
 export const getErrorMessage = (error: any): string => {
-  if (!error?.response?.data) {
-    return 'Произошла ошибка. Попробуйте еще раз.';
+  // Если это уже строка (Error.message), возвращаем её
+  if (typeof error === 'string') {
+    return error;
   }
 
-  const errorData = error.response.data;
-  const message = errorData.message;
+  // Если это Error объект с message
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  // Если это объект с message напрямую
+  if (error?.message && typeof error.message === 'string') {
+    return error.message;
+  }
+
+  // Обработка axios ошибок
+  if (error?.response?.data) {
+    const errorData = error.response.data;
+    const message = errorData.message;
 
   // Если сообщение уже на русском, возвращаем как есть
   if (typeof message === 'string') {
