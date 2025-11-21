@@ -50,14 +50,14 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
   async onModuleInit() {
     if (this.bot && this.botToken) {
       try {
-        this.logger.log('Starting Telegram bot...');
+        this.logger.log('[onModuleInit] Starting Telegram bot...');
         await this.bot.launch();
-        this.logger.log('Telegram bot started successfully');
+        this.logger.log('[onModuleInit] ✅ Telegram bot started successfully');
         
         // Получаем информацию о боте
         const botInfo = await this.bot.telegram.getMe();
-        this.logger.log(`Telegram bot @${botInfo.username} is ready`);
-        this.logger.log(`Bot ID: ${botInfo.id}, Username: @${botInfo.username}`);
+        this.logger.log(`[onModuleInit] ✅ Telegram bot @${botInfo.username} (ID: ${botInfo.id}) is ready and listening for messages`);
+        this.logger.log(`[onModuleInit] Bot configuration: token=${this.botToken ? '***configured***' : 'NOT SET'}, isConfigured=${!!this.botToken}`);
       } catch (error: any) {
         this.logger.error('Failed to start Telegram bot:', error);
         this.logger.error('Error details:', error.message || error);
@@ -131,10 +131,10 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
    */
   private async handleIncomingMessage(ctx: Context): Promise<void> {
     try {
-      this.logger.log('Processing incoming Telegram message...');
+      this.logger.log('[handleIncomingMessage] 📨 Processing incoming Telegram message...');
       const message = ctx.message as TelegramMessage;
       if (!message) {
-        this.logger.warn('No message in context, skipping');
+        this.logger.warn('[handleIncomingMessage] No message in context, skipping');
         return;
       }
 
@@ -144,7 +144,11 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
       const username = message.from?.username || message.from?.first_name || 'Unknown';
       const timestamp = message.date * 1000; // Telegram возвращает Unix timestamp в секундах
 
-      this.logger.log(`Processing message ${messageId} from ${username} (${chatId})`);
+      this.logger.log(`[handleIncomingMessage] Message details:`);
+      this.logger.log(`  - Chat ID: ${chatId}`);
+      this.logger.log(`  - User ID: ${userId}`);
+      this.logger.log(`  - Username: ${username}`);
+      this.logger.log(`  - Message ID: ${messageId}`);
 
       // Извлекаем текст сообщения
       let content = '';

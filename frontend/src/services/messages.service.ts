@@ -84,13 +84,27 @@ export const messagesService = {
       
       let messages = (client.messages || []) as Message[];
       
-      console.log('Raw messages from client:', {
+      console.log('[messagesService] Raw messages from client:', {
         clientId,
         messagesCount: messages.length,
-        messages: messages,
-        clientWhatsappId: client.whatsappId,
-        clientTelegramId: client.telegramId,
-        clientInstagramId: client.instagramId,
+        clientData: {
+          id: client.id,
+          name: client.name,
+          phone: client.phone,
+          email: client.email,
+          status: client.status,
+          telegramId: client.telegramId,
+          whatsappId: client.whatsappId,
+          instagramId: client.instagramId,
+        },
+        allClientKeys: Object.keys(client),
+        sampleMessages: messages.slice(0, 3).map((m: any) => ({
+          id: m.id,
+          channel: m.channel,
+          direction: m.direction,
+          content: m.content?.substring(0, 30),
+          clientId: m.clientId,
+        })),
       });
       
       // Убеждаемся, что сообщения имеют правильный формат
