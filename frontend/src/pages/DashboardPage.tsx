@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -29,7 +29,6 @@ import { useAuth } from '../context/AuthContext';
 import { RolesInfoDialog } from '../components/RolesInfoDialog';
 import { Notifications } from '../components/Notifications';
 import { funnelsService } from '../services/funnels.service';
-import { useState, useEffect } from 'react';
 
 export const DashboardPage: React.FC = () => {
   const { user, logout } = useAuth();
