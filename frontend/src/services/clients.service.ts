@@ -217,44 +217,59 @@ export const clientsService = {
     const url = `/clients/export${queryString ? `?${queryString}` : ''}`;
 
     try {
-      const response = await api.get(url, {
-        responseType: 'blob',
+      console.log('Exporting clients, URL:', url);
+      
+      // Используем прямой fetch для blob, чтобы избежать проблем с axios interceptor
+      const token = localStorage.getItem('accessToken');
+      const fullUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}${url}`;
+      
+      const response = await fetch(fullUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
+        },
       });
 
+      console.log('Export response status:', response.status);
+      console.log('Export response headers:', Object.fromEntries(response.headers.entries()));
+
       // Проверяем статус ответа
-      if (response.status < 200 || response.status >= 300) {
-        // Если статус не успешный, пытаемся прочитать ошибку из blob
-        if (response.data instanceof Blob) {
-          const text = await response.data.text();
-          try {
-            const errorData = JSON.parse(text);
-            throw new Error(errorData.message || 'Ошибка при экспорте клиентов');
-          } catch (parseError) {
-            throw new Error('Ошибка при экспорте клиентов');
-          }
+      if (!response.ok) {
+        const contentType = response.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Ошибка при экспорте клиентов');
+        } else {
+          const text = await response.text();
+          throw new Error(text || 'Ошибка при экспорте клиентов');
         }
-        throw new Error('Ошибка при экспорте клиентов');
       }
 
       // Проверяем Content-Type ответа
-      const contentType = response.headers['content-type'] || '';
+      const contentType = response.headers.get('content-type') || '';
+      console.log('Content-Type:', contentType);
       
       // Если это JSON (ошибка), обрабатываем как ошибку
       if (contentType.includes('application/json')) {
-        const text = await response.data.text();
-        const errorData = JSON.parse(text);
-        throw new Error(errorData.message || 'Ошибка при экспорте клиентов');
+        const text = await response.text();
+        console.log('JSON error response:', text);
+        try {
+          const errorData = JSON.parse(text);
+          throw new Error(errorData.message || 'Ошибка при экспорте клиентов');
+        } catch (parseError) {
+          throw new Error('Ошибка при экспорте клиентов');
+        }
       }
 
-      // Проверяем, что ответ действительно blob
-      if (!(response.data instanceof Blob)) {
-        throw new Error('Неверный формат ответа от сервера');
+      // Получаем blob из ответа
+      const blob = await response.blob();
+      
+      // Проверяем размер blob
+      if (blob.size === 0) {
+        throw new Error('Получен пустой файл');
       }
 
-      // Создаем ссылку для скачивания
-      const blob = new Blob([response.data], {
-        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      });
+      console.log('Blob size:', blob.size, 'bytes');
       const downloadUrl = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = downloadUrl;
@@ -263,33 +278,10 @@ export const clientsService = {
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(downloadUrl);
+      
+      console.log('File download initiated');
     } catch (error: any) {
-      // Если это ошибка axios с response
-      if (error.response) {
-        const contentType = error.response.headers['content-type'] || '';
-        
-        // Если ответ - blob, пытаемся прочитать его как JSON
-        if (error.response.data instanceof Blob) {
-          try {
-            const text = await error.response.data.text();
-            const errorData = JSON.parse(text);
-            throw new Error(errorData.message || 'Ошибка при экспорте клиентов');
-          } catch (parseError) {
-            // Если не удалось распарсить, значит это не JSON ошибка
-            throw new Error('Ошибка при экспорте клиентов');
-          }
-        }
-        
-        // Если есть сообщение об ошибке в data
-        if (error.response.data?.message) {
-          throw new Error(error.response.data.message);
-        }
-        
-        // Если это строка
-        if (typeof error.response.data === 'string') {
-          throw new Error(error.response.data);
-        }
-      }
+      console.error('Export error:', error);
       
       // Если это уже Error объект, пробрасываем его
       if (error instanceof Error) {

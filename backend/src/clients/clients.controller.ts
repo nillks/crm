@@ -13,6 +13,7 @@ import {
   UseInterceptors,
   UploadedFile,
   Res,
+  StreamableFile,
 } from '@nestjs/common';
 import { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -59,7 +60,7 @@ export class ClientsController {
   @RequirePermissions({ action: Action.Read, subject: Subject.Client })
   async exportClients(
     @Query() filterDto: FilterClientsDto,
-    @Res() res: Response,
+    @Res({ passthrough: false }) res: Response,
   ) {
     try {
       const buffer = await this.clientsService.exportToExcel(filterDto);
@@ -71,7 +72,6 @@ export class ClientsController {
       res.send(buffer);
     } catch (error: any) {
       // Важно: если используем @Res(), нужно явно отправить ответ
-      // Не используем return, так как это отключит стандартную обработку ответа NestJS
       if (!res.headersSent) {
         res.status(500).json({
           message: error.message || 'Ошибка при экспорте клиентов',
