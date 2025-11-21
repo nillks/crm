@@ -37,6 +37,8 @@ import {
   TransferWithinAStation,
   Comment as CommentIcon,
   Send,
+  ArrowForward,
+  Timeline,
 } from '@mui/icons-material';
 import { ticketsService } from '../../services/tickets.service';
 import type { Ticket, Comment, CreateCommentDto, TransferTicketDto } from '../../services/tickets.service';
@@ -44,6 +46,8 @@ import { clientsService } from '../../services/clients.service';
 import type { Client } from '../../services/clients.service';
 import { usersService } from '../../services/users.service';
 import type { User } from '../../services/users.service';
+import { funnelsService } from '../../services/funnels.service';
+import type { Funnel, FunnelStage } from '../../services/funnels.service';
 import { getErrorMessage } from '../../utils/errorMessages';
 
 export const TicketDetailPage: React.FC = () => {
@@ -94,6 +98,11 @@ export const TicketDetailPage: React.FC = () => {
   const [loadingClients, setLoadingClients] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
+  const [funnels, setFunnels] = useState<Funnel[]>([]);
+  const [loadingFunnels, setLoadingFunnels] = useState(false);
+  const [funnelMoveDialogOpen, setFunnelMoveDialogOpen] = useState(false);
+  const [selectedFunnel, setSelectedFunnel] = useState<Funnel | null>(null);
+  const [availableStages, setAvailableStages] = useState<FunnelStage[]>([]);
 
   useEffect(() => {
     if (id === 'new') {
@@ -131,6 +140,7 @@ export const TicketDetailPage: React.FC = () => {
     if (id && id !== 'new') {
       loadTicket();
       loadComments();
+      loadFunnels();
     } else if (id === 'new') {
       setTicket(null);
       setEditMode(true);
@@ -149,13 +159,26 @@ export const TicketDetailPage: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
+  const loadFunnels = async () => {
+    try {
+      setLoadingFunnels(true);
+      const funnelsList = await funnelsService.findActive();
+      setFunnels(funnelsList || []);
+    } catch (err) {
+      console.error('Failed to load funnels:', err);
+      setFunnels([]);
+    } finally {
+      setLoadingFunnels(false);
+    }
+  };
+
   const loadTicket = async () => {
     if (!id) return;
 
     try {
       setLoading(true);
       setError(null);
-      const data = await ticketsService.getTicketById(id, 'client,createdBy,assignedTo,comments');
+      const data = await ticketsService.getTicketById(id, 'client,createdBy,assignedTo,comments,funnelStage');
       setTicket(data);
       setFormData({
         title: data.title,
@@ -166,6 +189,17 @@ export const TicketDetailPage: React.FC = () => {
         category: (data as any).category,
         dueDate: data.dueDate,
       });
+      
+      // Если у тикета есть этап воронки, загружаем доступные этапы
+      if ((data as any).funnelStageId && funnels.length > 0) {
+        const currentFunnel = funnels.find(f => 
+          f.stages.some(s => s.id === (data as any).funnelStageId)
+        );
+        if (currentFunnel) {
+          setSelectedFunnel(currentFunnel);
+          setAvailableStages(currentFunnel.stages.filter(s => s.isActive));
+        }
+      }
       if (data.comments) {
         setComments(data.comments);
       }
@@ -256,6 +290,68 @@ export const TicketDetailPage: React.FC = () => {
       setError(getErrorMessage(err));
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleMoveToNextStage = async () => {
+    if (!id || id === 'new') return;
+
+    try {
+      setSaving(true);
+      setError(null);
+      await ticketsService.moveToNextStage(id);
+      await loadTicket();
+    } catch (err: any) {
+      setError(getErrorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleMoveToStage = async (stageId: string) => {
+    if (!id || id === 'new') return;
+
+    try {
+      setSaving(true);
+      setError(null);
+      await ticketsService.moveToStage(id, stageId);
+      await loadTicket();
+      setFunnelMoveDialogOpen(false);
+    } catch (err: any) {
+      setError(getErrorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleOpenFunnelDialog = () => {
+    if (!ticket) return;
+    
+    // Находим воронку, к которой относится текущий этап
+    const currentFunnel = funnels.find(f => 
+      f.stages.some(s => s.id === (ticket as any).funnelStageId)
+    );
+    
+    if (currentFunnel) {
+      setSelectedFunnel(currentFunnel);
+      setAvailableStages(currentFunnel.stages.filter(s => s.isActive));
+    } else {
+      // Если воронка не найдена, показываем первую активную воронку
+      const firstFunnel = funnels.find(f => f.isActive);
+      if (firstFunnel) {
+        setSelectedFunnel(firstFunnel);
+        setAvailableStages(firstFunnel.stages.filter(s => s.isActive));
+      }
+    }
+    
+    setFunnelMoveDialogOpen(true);
+  };
+
+  const handleFunnelChange = (funnelId: string) => {
+    const funnel = funnels.find(f => f.id === funnelId);
+    if (funnel) {
+      setSelectedFunnel(funnel);
+      setAvailableStages(funnel.stages.filter(s => s.isActive));
     }
   };
 
@@ -724,7 +820,53 @@ export const TicketDetailPage: React.FC = () => {
                       {displayTicket?.assignedTo?.name || 'Не назначен'}
                     </Typography>
                   </Grid>
+                  {(displayTicket as any)?.funnelStage && (
+                    <Grid item xs={12}>
+                      <Typography variant="body2" color="text.secondary" gutterBottom>
+                        Этап воронки
+                      </Typography>
+                      <Chip 
+                        label={(displayTicket as any).funnelStage.name}
+                        size="small"
+                        color="primary"
+                        icon={<Timeline />}
+                      />
+                    </Grid>
+                  )}
                 </Grid>
+                
+                {/* Действия с воронкой */}
+                {id !== 'new' && (
+                  <Box sx={{ mt: 3, pt: 2, borderTop: 1, borderColor: 'divider' }}>
+                    <Typography variant="subtitle2" gutterBottom>
+                      Воронка продаж
+                    </Typography>
+                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 1 }}>
+                      {(displayTicket as any)?.funnelStageId && (
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          startIcon={<ArrowForward />}
+                          onClick={handleMoveToNextStage}
+                          disabled={saving || loadingFunnels}
+                          sx={{ borderRadius: 2 }}
+                        >
+                          Следующий этап
+                        </Button>
+                      )}
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        startIcon={<Timeline />}
+                        onClick={handleOpenFunnelDialog}
+                        disabled={saving || loadingFunnels || funnels.length === 0}
+                        sx={{ borderRadius: 2 }}
+                      >
+                        Выбрать этап
+                      </Button>
+                    </Box>
+                  </Box>
+                )}
               </CardContent>
             </Card>
           </Grid>
@@ -849,6 +991,55 @@ export const TicketDetailPage: React.FC = () => {
             <Button onClick={handleStatusChange} variant="contained" disabled={saving}>
               {saving ? <CircularProgress size={20} /> : 'Изменить'}
             </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Funnel Move Dialog */}
+        <Dialog open={funnelMoveDialogOpen} onClose={() => setFunnelMoveDialogOpen(false)} maxWidth="sm" fullWidth>
+          <DialogTitle>Переместить тикет по воронке</DialogTitle>
+          <DialogContent>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
+              <FormControl fullWidth>
+                <InputLabel>Воронка</InputLabel>
+                <Select
+                  value={selectedFunnel?.id || ''}
+                  label="Воронка"
+                  onChange={(e) => handleFunnelChange(e.target.value)}
+                >
+                  {funnels.filter(f => f.isActive).map((funnel) => (
+                    <MenuItem key={funnel.id} value={funnel.id}>
+                      {funnel.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              
+              {selectedFunnel && availableStages.length > 0 && (
+                <FormControl fullWidth>
+                  <InputLabel>Этап</InputLabel>
+                  <Select
+                    value=""
+                    label="Этап"
+                    onChange={(e) => handleMoveToStage(e.target.value)}
+                  >
+                    {availableStages.map((stage) => (
+                      <MenuItem key={stage.id} value={stage.id}>
+                        {stage.name} {stage.order > 0 && `(Порядок: ${stage.order})`}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              )}
+              
+              {selectedFunnel && availableStages.length === 0 && (
+                <Typography variant="body2" color="text.secondary">
+                  В выбранной воронке нет активных этапов
+                </Typography>
+              )}
+            </Box>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setFunnelMoveDialogOpen(false)}>Отмена</Button>
           </DialogActions>
         </Dialog>
       </Container>

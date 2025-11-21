@@ -13,6 +13,13 @@ export interface Ticket {
   priority: number;
   dueDate?: string;
   closedAt?: string;
+  funnelStageId?: string;
+  funnelStage?: {
+    id: string;
+    name: string;
+    funnelId: string;
+    order: number;
+  };
   createdAt: string;
   updatedAt: string;
   client?: {
@@ -189,6 +196,22 @@ export const ticketsService = {
    */
   async createComment(ticketId: string, data: CreateCommentDto): Promise<Comment> {
     const response = await api.post<Comment>(`/tickets/${ticketId}/comments`, data);
+    return response.data;
+  },
+
+  /**
+   * Переместить тикет на следующий этап воронки
+   */
+  async moveToNextStage(ticketId: string): Promise<Ticket> {
+    const response = await api.post<Ticket>(`/tickets/${ticketId}/move-next-stage`);
+    return response.data;
+  },
+
+  /**
+   * Переместить тикет на конкретный этап воронки
+   */
+  async moveToStage(ticketId: string, stageId: string): Promise<Ticket> {
+    const response = await api.post<Ticket>(`/tickets/${ticketId}/move-stage/${stageId}`);
     return response.data;
   },
 };

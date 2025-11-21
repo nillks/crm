@@ -23,7 +23,7 @@ import { TasksModule } from './tasks/tasks.module';
 import { QuickRepliesModule } from './quick-replies/quick-replies.module';
 import { WABAModule } from './waba/waba.module';
 import { ReportsModule } from './reports/reports.module';
-// import { FunnelsModule } from './funnels/funnels.module'; // TODO: Создать модуль
+import { FunnelsModule } from './funnels/funnels.module';
 // import { SupportLinesModule } from './support-lines/support-lines.module'; // TODO: Создать модуль
 // import { ScheduledReportsModule } from './scheduled-reports/scheduled-reports.module'; // TODO: Создать модуль
 // import { NotificationsModule } from './notifications/notifications.module'; // TODO: Создать модуль
@@ -100,7 +100,7 @@ import { TestPermissionsController } from './roles/test-permissions.controller';
     QuickRepliesModule,
     WABAModule,
     ReportsModule,
-    // FunnelsModule, // TODO: Создать модуль
+    FunnelsModule,
     // SupportLinesModule, // TODO: Создать модуль
     // ScheduledReportsModule, // TODO: Создать модуль
     // NotificationsModule, // TODO: Создать модуль

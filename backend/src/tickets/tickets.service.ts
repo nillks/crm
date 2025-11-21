@@ -192,6 +192,7 @@ export class TicketsService {
         relations.push('comments');
         relations.push('comments.user');
       }
+      if (includes.includes('funnelStage')) relations.push('funnelStage');
     } else {
       // По умолчанию загружаем createdBy для autoAssignTicket
       relations.push('createdBy');

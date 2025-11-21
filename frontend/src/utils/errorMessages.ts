@@ -97,8 +97,8 @@ export const getErrorMessage = (error: any): string => {
   }
 
   // Если это объект ошибки валидации
-  if (errorData.error) {
-    return errorData.error;
+  if (error?.response?.data?.error) {
+    return error.response.data.error;
   }
 
   return 'Произошла ошибка. Попробуйте еще раз.';
