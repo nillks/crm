@@ -662,13 +662,20 @@ export class InstagramService implements OnModuleInit, OnModuleDestroy {
    * Найти или создать тикет для клиента
    */
   private async findOrCreateTicket(client: Client): Promise<Ticket | null> {
-    // Ищем открытый тикет для этого клиента в Instagram
+    // Ищем открытый тикет для этого клиента в Instagram (NEW или IN_PROGRESS)
     let ticket = await this.ticketsRepository.findOne({
-      where: {
-        clientId: client.id,
-        channel: TicketChannel.INSTAGRAM,
-        status: TicketStatus.NEW,
-      },
+      where: [
+        {
+          clientId: client.id,
+          channel: TicketChannel.INSTAGRAM,
+          status: TicketStatus.NEW,
+        },
+        {
+          clientId: client.id,
+          channel: TicketChannel.INSTAGRAM,
+          status: TicketStatus.IN_PROGRESS,
+        },
+      ],
       order: { createdAt: 'DESC' },
     });
 

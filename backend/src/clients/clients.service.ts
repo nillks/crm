@@ -761,22 +761,40 @@ export class ClientsService {
     };
 
     // Данные
-    allClients.forEach((client) => {
+    if (allClients.length === 0) {
+      // Если клиентов нет, добавляем строку с сообщением
       worksheet.addRow({
-        name: client.name,
-        phone: client.phone || '',
-        email: client.email || '',
-        telegramId: client.telegramId || '',
-        whatsappId: client.whatsappId || '',
-        instagramId: client.instagramId || '',
-        notes: client.notes || '',
-        status: client.status === 'active' ? 'Активен' : client.status === 'inactive' ? 'Неактивен' : 'Заблокирован',
-        tags: client.tags?.join(', ') || '',
-        customFields: client.customFields ? JSON.stringify(client.customFields) : '',
-        createdAt: client.createdAt ? new Date(client.createdAt).toLocaleString('ru-RU') : '',
-        updatedAt: client.updatedAt ? new Date(client.updatedAt).toLocaleString('ru-RU') : '',
+        name: 'Клиенты не найдены',
+        phone: '',
+        email: '',
+        telegramId: '',
+        whatsappId: '',
+        instagramId: '',
+        notes: '',
+        status: '',
+        tags: '',
+        customFields: '',
+        createdAt: '',
+        updatedAt: '',
       });
-    });
+    } else {
+      allClients.forEach((client) => {
+        worksheet.addRow({
+          name: client.name,
+          phone: client.phone || '',
+          email: client.email || '',
+          telegramId: client.telegramId || '',
+          whatsappId: client.whatsappId || '',
+          instagramId: client.instagramId || '',
+          notes: client.notes || '',
+          status: client.status === 'active' ? 'Активен' : client.status === 'inactive' ? 'Неактивен' : 'Заблокирован',
+          tags: client.tags?.join(', ') || '',
+          customFields: client.customFields ? JSON.stringify(client.customFields) : '',
+          createdAt: client.createdAt ? new Date(client.createdAt).toLocaleString('ru-RU') : '',
+          updatedAt: client.updatedAt ? new Date(client.updatedAt).toLocaleString('ru-RU') : '',
+        });
+      });
+    }
 
     // Автоподбор ширины колонок
     worksheet.columns.forEach((column) => {

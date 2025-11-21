@@ -60,20 +60,27 @@ export const TicketsPage: React.FC = () => {
         include: 'client,assignedTo,createdBy',
         ...params,
       });
-      setTickets(response.data);
-      setTotalPages(response.totalPages);
-      setTotal(response.total);
+      setTickets(response.data || []);
+      setTotalPages(response.totalPages || 1);
+      setTotal(response.total || 0);
     } catch (err: any) {
       setError(getErrorMessage(err));
+      setTickets([]);
+      setTotalPages(1);
+      setTotal(0);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadTickets();
+    const filters: FilterTicketsDto = {};
+    if (search) filters.search = search;
+    if (statusFilter) filters.status = statusFilter as any;
+    if (channelFilter) filters.channel = channelFilter as any;
+    loadTickets(filters);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page]);
+  }, [page, search, statusFilter, channelFilter]);
 
   const handleSearch = () => {
     setPage(1);
@@ -86,7 +93,7 @@ export const TicketsPage: React.FC = () => {
 
   const handleFilterChange = () => {
     setPage(1);
-    handleSearch();
+    // Фильтры уже применятся через useEffect
   };
 
   const getStatusColor = (status: string) => {

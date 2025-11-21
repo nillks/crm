@@ -1454,13 +1454,20 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
    * Найти или создать тикет для клиента
    */
   private async findOrCreateTicket(client: Client): Promise<Ticket | null> {
-    // Ищем открытый тикет для этого клиента в WhatsApp
+    // Ищем открытый тикет для этого клиента в WhatsApp (NEW или IN_PROGRESS)
     let ticket = await this.ticketsRepository.findOne({
-      where: {
-        clientId: client.id,
-        channel: TicketChannel.WHATSAPP,
-        status: TicketStatus.NEW,
-      },
+      where: [
+        {
+          clientId: client.id,
+          channel: TicketChannel.WHATSAPP,
+          status: TicketStatus.NEW,
+        },
+        {
+          clientId: client.id,
+          channel: TicketChannel.WHATSAPP,
+          status: TicketStatus.IN_PROGRESS,
+        },
+      ],
       order: { createdAt: 'DESC' },
     });
 

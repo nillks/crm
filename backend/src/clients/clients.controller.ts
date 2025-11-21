@@ -61,12 +61,18 @@ export class ClientsController {
     @Query() filterDto: FilterClientsDto,
     @Res() res: Response,
   ) {
-    const buffer = await this.clientsService.exportToExcel(filterDto);
-    const fileName = `clients_export_${Date.now()}.xlsx`;
+    try {
+      const buffer = await this.clientsService.exportToExcel(filterDto);
+      const fileName = `clients_export_${Date.now()}.xlsx`;
 
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(fileName)}"`);
-    res.send(buffer);
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(fileName)}"`);
+      res.send(buffer);
+    } catch (error: any) {
+      res.status(500).json({
+        message: error.message || 'Ошибка при экспорте клиентов',
+      });
+    }
   }
 
   /**

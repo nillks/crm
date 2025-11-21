@@ -108,14 +108,17 @@ export class TicketsService {
 
       const operatorIds = operatorsSameLine.map((op) => op.id);
 
-      // Оператор видит тикеты, назначенные на операторов его линии, или созданные им
+      // Оператор видит тикеты:
+      // 1. Назначенные на операторов его линии
+      // 2. Созданные им
+      // 3. Неназначенные тикеты (assignedToId IS NULL) - новые тикеты для обработки
       // Используем QueryBuilder для более сложного условия
       const queryBuilder = this.ticketsRepository
         .createQueryBuilder('ticket')
         .leftJoinAndSelect('ticket.client', 'client')
         .leftJoinAndSelect('ticket.createdBy', 'createdBy')
         .leftJoinAndSelect('ticket.assignedTo', 'assignedTo')
-        .where('(ticket.assignedToId IN (:...operatorIds) OR ticket.createdById = :userId)', {
+        .where('(ticket.assignedToId IN (:...operatorIds) OR ticket.createdById = :userId OR ticket.assignedToId IS NULL)', {
           operatorIds,
           userId: user.id,
         });
