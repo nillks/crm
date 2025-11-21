@@ -48,6 +48,9 @@ export const DashboardPage: React.FC = () => {
         setActiveFunnelsCount(activeFunnels.length);
       } catch (err) {
         console.error('Failed to load funnels:', err);
+        // Устанавливаем значения по умолчанию при ошибке
+        setFunnelsCount(0);
+        setActiveFunnelsCount(0);
       } finally {
         setLoadingFunnels(false);
       }
@@ -610,16 +613,22 @@ export const DashboardPage: React.FC = () => {
                 <Typography variant="body2" sx={{ mb: 2, opacity: 0.9 }}>
                   Управление воронками продаж, этапами и автоматическими переходами
                 </Typography>
-                {!loadingFunnels && (
-                  <Box sx={{ mb: 2 }}>
+                <Box sx={{ mb: 2 }}>
+                  {loadingFunnels ? (
                     <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                      Всего воронок: <strong>{funnelsCount}</strong>
+                      Загрузка...
                     </Typography>
-                    <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                      Активных: <strong>{activeFunnelsCount}</strong>
-                    </Typography>
-                  </Box>
-                )}
+                  ) : (
+                    <>
+                      <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                        Всего воронок: <strong>{funnelsCount}</strong>
+                      </Typography>
+                      <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                        Активных: <strong>{activeFunnelsCount}</strong>
+                      </Typography>
+                    </>
+                  )}
+                </Box>
                 <Button
                   variant="contained"
                   startIcon={<Timeline />}

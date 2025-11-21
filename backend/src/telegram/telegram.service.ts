@@ -50,15 +50,21 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
   async onModuleInit() {
     if (this.bot && this.botToken) {
       try {
+        this.logger.log('Starting Telegram bot...');
         await this.bot.launch();
         this.logger.log('Telegram bot started successfully');
         
         // Получаем информацию о боте
         const botInfo = await this.bot.telegram.getMe();
         this.logger.log(`Telegram bot @${botInfo.username} is ready`);
-      } catch (error) {
+        this.logger.log(`Bot ID: ${botInfo.id}, Username: @${botInfo.username}`);
+      } catch (error: any) {
         this.logger.error('Failed to start Telegram bot:', error);
+        this.logger.error('Error details:', error.message || error);
+        this.logger.error('Stack:', error.stack);
       }
+    } else {
+      this.logger.warn('Telegram bot not initialized. Check TELEGRAM_BOT_TOKEN environment variable.');
     }
   }
 
@@ -73,29 +79,51 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
    * Настройка обработчиков сообщений
    */
   private setupHandlers() {
+    this.logger.log('Setting up Telegram bot handlers...');
+    
     // Обработка текстовых сообщений
     this.bot.on('text', async (ctx: Context) => {
+      this.logger.log('Received text message in Telegram bot');
       await this.handleIncomingMessage(ctx);
     });
 
     // Обработка других типов сообщений
     this.bot.on('photo', async (ctx: Context) => {
+      this.logger.log('Received photo message in Telegram bot');
       await this.handleIncomingMessage(ctx);
     });
 
     this.bot.on('video', async (ctx: Context) => {
+      this.logger.log('Received video message in Telegram bot');
       await this.handleIncomingMessage(ctx);
     });
 
     this.bot.on('document', async (ctx: Context) => {
+      this.logger.log('Received document message in Telegram bot');
       await this.handleIncomingMessage(ctx);
+    });
+
+    // Обработка всех сообщений (fallback)
+    this.bot.on('message', async (ctx: Context) => {
+      this.logger.log('Received message event in Telegram bot (fallback handler)');
+      if (ctx.message && !('text' in ctx.message) && !('photo' in ctx.message) && !('video' in ctx.message) && !('document' in ctx.message)) {
+        await this.handleIncomingMessage(ctx);
+      }
     });
 
     // Обработка ошибок
     this.bot.catch((err: any, ctx) => {
       this.logger.error(`Error in Telegram bot: ${err?.message || err}`, err?.stack);
-      ctx.reply('Произошла ошибка при обработке сообщения. Попробуйте позже.');
+      try {
+        if (ctx && ctx.reply) {
+          ctx.reply('Произошла ошибка при обработке сообщения. Попробуйте позже.');
+        }
+      } catch (replyError) {
+        this.logger.error('Failed to send error reply:', replyError);
+      }
     });
+
+    this.logger.log('Telegram bot handlers set up successfully');
   }
 
   /**
@@ -103,14 +131,20 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
    */
   private async handleIncomingMessage(ctx: Context): Promise<void> {
     try {
+      this.logger.log('Processing incoming Telegram message...');
       const message = ctx.message as TelegramMessage;
-      if (!message) return;
+      if (!message) {
+        this.logger.warn('No message in context, skipping');
+        return;
+      }
 
       const chatId = message.chat.id.toString();
       const messageId = message.message_id.toString();
       const userId = message.from?.id.toString();
       const username = message.from?.username || message.from?.first_name || 'Unknown';
       const timestamp = message.date * 1000; // Telegram возвращает Unix timestamp в секундах
+
+      this.logger.log(`Processing message ${messageId} from ${username} (${chatId})`);
 
       // Извлекаем текст сообщения
       let content = '';
@@ -158,7 +192,7 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
       await this.messagesRepository.save(savedMessage);
 
       this.logger.log(
-        `Incoming Telegram message processed: ${messageId} from ${username} (${chatId})`,
+        `✅ Incoming Telegram message saved successfully: ${messageId} from ${username} (${chatId}), message ID in DB: ${savedMessage.id}, channel: ${savedMessage.channel}, direction: ${savedMessage.direction}`,
       );
 
       // Автоматический вызов AI для входящих сообщений

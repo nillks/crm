@@ -40,6 +40,18 @@ export class TelegramController {
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @RequirePermissions({ action: Action.Read, subject: Subject.Message })
   getConfig() {
+    const config = this.telegramService.getConfig();
+    return {
+      ...config,
+      botStatus: config.isConfigured ? 'active' : 'not_configured',
+    };
+  }
+
+  /**
+   * Проверить статус бота (публичный endpoint для диагностики)
+   */
+  @Get('status')
+  getStatus() {
     return this.telegramService.getConfig();
   }
 }
