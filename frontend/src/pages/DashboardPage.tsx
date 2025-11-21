@@ -23,15 +23,39 @@ import {
   CalendarToday,
   Info,
   Speed,
+  Timeline,
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 import { RolesInfoDialog } from '../components/RolesInfoDialog';
 import { Notifications } from '../components/Notifications';
+import { funnelsService } from '../services/funnels.service';
+import { useState, useEffect } from 'react';
 
 export const DashboardPage: React.FC = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [rolesDialogOpen, setRolesDialogOpen] = useState(false);
+  const [funnelsCount, setFunnelsCount] = useState<number>(0);
+  const [activeFunnelsCount, setActiveFunnelsCount] = useState<number>(0);
+  const [loadingFunnels, setLoadingFunnels] = useState(true);
+
+  useEffect(() => {
+    const loadFunnels = async () => {
+      try {
+        setLoadingFunnels(true);
+        const allFunnels = await funnelsService.findAll();
+        const activeFunnels = allFunnels.filter(f => f.isActive);
+        setFunnelsCount(allFunnels.length);
+        setActiveFunnelsCount(activeFunnels.length);
+      } catch (err) {
+        console.error('Failed to load funnels:', err);
+      } finally {
+        setLoadingFunnels(false);
+      }
+    };
+
+    loadFunnels();
+  }, []);
 
   const handleLogout = () => {
     logout();
@@ -556,6 +580,61 @@ export const DashboardPage: React.FC = () => {
                   }}
                 >
                   Открыть лимиты
+                </Button>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          <Grid item xs={12} md={4}>
+            <Card
+              sx={{
+                borderRadius: 3,
+                height: '100%',
+                cursor: 'pointer',
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                color: 'white',
+                transition: 'transform 0.2s, boxShadow 0.2s',
+                '&:hover': {
+                  transform: 'translateY(-4px)',
+                  boxShadow: 6,
+                },
+              }}
+              onClick={() => navigate('/admin/funnels')}
+            >
+              <CardContent sx={{ p: 3 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+                  <Timeline sx={{ fontSize: 40 }} />
+                  <Typography variant="h6" fontWeight={600}>
+                    Воронки продаж
+                  </Typography>
+                </Box>
+                <Typography variant="body2" sx={{ mb: 2, opacity: 0.9 }}>
+                  Управление воронками продаж, этапами и автоматическими переходами
+                </Typography>
+                {!loadingFunnels && (
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                      Всего воронок: <strong>{funnelsCount}</strong>
+                    </Typography>
+                    <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                      Активных: <strong>{activeFunnelsCount}</strong>
+                    </Typography>
+                  </Box>
+                )}
+                <Button
+                  variant="contained"
+                  startIcon={<Timeline />}
+                  fullWidth
+                  sx={{
+                    borderRadius: 2,
+                    bgcolor: 'rgba(255, 255, 255, 0.2)',
+                    color: 'white',
+                    '&:hover': {
+                      bgcolor: 'rgba(255, 255, 255, 0.3)',
+                    },
+                  }}
+                >
+                  Управление воронками
                 </Button>
               </CardContent>
             </Card>
