@@ -231,7 +231,7 @@ export const ClientsPage: React.FC = () => {
       const filters: FilterClientsDto = {
         search: search || undefined,
         status: statusFilter || undefined,
-        tags: selectedTags.length > 0 ? selectedTags : undefined,
+        tags: tagsFilter.length > 0 ? tagsFilter : undefined,
         sortBy: 'createdAt',
         sortOrder: 'DESC',
       };
