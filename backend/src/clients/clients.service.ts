@@ -365,21 +365,96 @@ export class ClientsService {
       errors: [] as Array<{ row: number; error: string }>,
     };
 
+    // Вспомогательная функция для извлечения значения ячейки
+    const getCellValue = (cell: any): string | undefined => {
+      if (!cell) return undefined;
+      
+      const value = cell.value;
+      
+      // Если значение отсутствует
+      if (value === null || value === undefined) {
+        return undefined;
+      }
+      
+      // Если значение - строка или число, просто конвертируем в строку
+      if (typeof value === 'string' || typeof value === 'number') {
+        return String(value);
+      }
+      
+      // Если значение - Date объект
+      if (value instanceof Date) {
+        return value.toISOString();
+      }
+      
+      // Если значение - объект (формула, форматирование и т.д.)
+      if (typeof value === 'object') {
+        // Для формул ExcelJS: cell.value.result содержит результат формулы
+        if ('result' in value && value.result !== null && value.result !== undefined) {
+          return String(value.result);
+        }
+        // Для форматированных чисел: cell.value может иметь свойство text
+        if ('text' in value && value.text !== null && value.text !== undefined) {
+          return String(value.text);
+        }
+        // Для других объектов пытаемся извлечь числовое значение
+        if ('value' in value && value.value !== null && value.value !== undefined) {
+          return String(value.value);
+        }
+        // Если это объект с числовым представлением
+        if (typeof value === 'object' && !Array.isArray(value)) {
+          // Пытаемся найти числовое или строковое значение
+          const keys = Object.keys(value);
+          if (keys.length > 0) {
+            // Берем первое примитивное значение
+            for (const key of keys) {
+              if (typeof value[key] === 'string' || typeof value[key] === 'number') {
+                return String(value[key]);
+              }
+            }
+          }
+        }
+        // Если ничего не подошло, возвращаем undefined
+        return undefined;
+      }
+      
+      // Для всех остальных случаев
+      return undefined;
+    };
+
     // Пропускаем заголовок (первая строка)
     let rowNumber = 2;
     worksheet.eachRow((row, rowIndex) => {
       if (rowIndex === 1) return; // Пропускаем заголовок
 
       try {
+        const nameValue = getCellValue(row.getCell(1));
+        let phoneValue = getCellValue(row.getCell(2));
+        const emailValue = getCellValue(row.getCell(3));
+        const telegramIdValue = getCellValue(row.getCell(4));
+        const whatsappIdValue = getCellValue(row.getCell(5));
+        const instagramIdValue = getCellValue(row.getCell(6));
+        const notesValue = getCellValue(row.getCell(7));
+        const statusValue = getCellValue(row.getCell(8));
+
+        // Очищаем телефон от лишних символов и проверяем, что это строка
+        if (phoneValue) {
+          // Убираем все нецифровые символы, кроме +
+          phoneValue = phoneValue.replace(/[^\d+]/g, '');
+          // Если получилась пустая строка, делаем undefined
+          if (phoneValue.trim() === '') {
+            phoneValue = undefined;
+          }
+        }
+
         const clientData: Partial<CreateClientDto> = {
-          name: row.getCell(1).value?.toString() || '',
-          phone: row.getCell(2).value?.toString() || undefined,
-          email: row.getCell(3).value?.toString() || undefined,
-          telegramId: row.getCell(4).value?.toString() || undefined,
-          whatsappId: row.getCell(5).value?.toString() || undefined,
-          instagramId: row.getCell(6).value?.toString() || undefined,
-          notes: row.getCell(7).value?.toString() || undefined,
-          status: (row.getCell(8).value?.toString() || 'active') as 'active' | 'inactive' | 'blocked',
+          name: nameValue || '',
+          phone: phoneValue || undefined,
+          email: emailValue || undefined,
+          telegramId: telegramIdValue || undefined,
+          whatsappId: whatsappIdValue || undefined,
+          instagramId: instagramIdValue || undefined,
+          notes: notesValue || undefined,
+          status: (statusValue || 'active') as 'active' | 'inactive' | 'blocked',
         };
 
         if (!clientData.name) {

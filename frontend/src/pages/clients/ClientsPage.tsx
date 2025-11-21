@@ -437,7 +437,19 @@ export const ClientsPage: React.FC = () => {
                               {client.name}
                             </Typography>
                           </TableCell>
-                          <TableCell>{client.phone || '-'}</TableCell>
+                          <TableCell>
+                            {(() => {
+                              if (!client.phone) return '-';
+                              if (typeof client.phone === 'string') return client.phone;
+                              // Если это объект (не должно быть, но на всякий случай)
+                              if (typeof client.phone === 'object') {
+                                // Пытаемся извлечь строковое значение
+                                const phoneStr = String(client.phone);
+                                return phoneStr !== '[object Object]' ? phoneStr : '-';
+                              }
+                              return String(client.phone);
+                            })()}
+                          </TableCell>
                           <TableCell>{client.email || '-'}</TableCell>
                           <TableCell>
                             <Chip
