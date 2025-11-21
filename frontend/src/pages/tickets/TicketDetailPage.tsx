@@ -42,6 +42,8 @@ import { ticketsService } from '../../services/tickets.service';
 import type { Ticket, Comment, CreateCommentDto, TransferTicketDto } from '../../services/tickets.service';
 import { clientsService } from '../../services/clients.service';
 import type { Client } from '../../services/clients.service';
+import { usersService } from '../../services/users.service';
+import type { User } from '../../services/users.service';
 import { getErrorMessage } from '../../utils/errorMessages';
 
 export const TicketDetailPage: React.FC = () => {
@@ -90,10 +92,13 @@ export const TicketDetailPage: React.FC = () => {
   const [newStatus, setNewStatus] = useState<string>('');
   const [clients, setClients] = useState<Client[]>([]);
   const [loadingClients, setLoadingClients] = useState(false);
+  const [users, setUsers] = useState<User[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
 
   useEffect(() => {
     if (id === 'new') {
       loadClients();
+      loadUsers();
     }
   }, [id]);
 
@@ -106,6 +111,19 @@ export const TicketDetailPage: React.FC = () => {
       // Игнорируем ошибки загрузки клиентов
     } finally {
       setLoadingClients(false);
+    }
+  };
+
+  const loadUsers = async () => {
+    try {
+      setLoadingUsers(true);
+      const usersList = await usersService.getUsers();
+      setUsers(usersList || []);
+    } catch (err) {
+      console.error('Failed to load users:', err);
+      setUsers([]);
+    } finally {
+      setLoadingUsers(false);
     }
   };
 
@@ -124,6 +142,7 @@ export const TicketDetailPage: React.FC = () => {
         priority: 0,
         category: undefined,
         dueDate: undefined,
+        assignedToId: undefined,
       });
       setLoading(false);
     }
@@ -485,6 +504,24 @@ export const TicketDetailPage: React.FC = () => {
                           shrink: true,
                         }}
                       />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <FormControl fullWidth>
+                        <InputLabel>Назначить на</InputLabel>
+                        <Select
+                          value={formData.assignedToId || ''}
+                          label="Назначить на"
+                          onChange={(e) => setFormData({ ...formData, assignedToId: e.target.value || undefined })}
+                          disabled={loadingUsers}
+                        >
+                          <MenuItem value="">Не назначен</MenuItem>
+                          {users.map((user) => (
+                            <MenuItem key={user.id} value={user.id}>
+                              {user.name} ({user.email})
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
                     </Grid>
                     <Grid item xs={12}>
                       <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
