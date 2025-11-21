@@ -10,6 +10,9 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  InternalServerErrorException,
+  BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { TasksService } from './tasks.service';
 import { CreateTaskDto } from './dto/create-task.dto';
@@ -22,6 +25,8 @@ import { User } from '../entities/user.entity';
 @Controller('tasks')
 @UseGuards(JwtAuthGuard)
 export class TasksController {
+  private readonly logger = new Logger(TasksController.name);
+
   constructor(private readonly tasksService: TasksService) {}
 
   /**
@@ -97,9 +102,19 @@ export class TasksController {
   async getUpcomingTasks(@Query('hours') hours?: string) {
     try {
       const hoursNum = hours ? parseInt(hours, 10) : 24;
-      return await this.tasksService.getUpcomingTasks(hoursNum);
-    } catch (error) {
-      throw error;
+      if (isNaN(hoursNum) || hoursNum < 0) {
+        throw new BadRequestException('Invalid hours parameter');
+      }
+      const tasks = await this.tasksService.getUpcomingTasks(hoursNum);
+      return tasks || [];
+    } catch (error: any) {
+      this.logger.error('Error getting upcoming tasks:', error);
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new InternalServerErrorException(
+        error.message || 'Ошибка при получении задач с приближающимися сроками',
+      );
     }
   }
 
@@ -110,9 +125,13 @@ export class TasksController {
   @Get('overdue')
   async getOverdueTasks() {
     try {
-      return await this.tasksService.getOverdueTasks();
-    } catch (error) {
-      throw error;
+      const tasks = await this.tasksService.getOverdueTasks();
+      return tasks || [];
+    } catch (error: any) {
+      this.logger.error('Error getting overdue tasks:', error);
+      throw new InternalServerErrorException(
+        error.message || 'Ошибка при получении просроченных задач',
+      );
     }
   }
 }

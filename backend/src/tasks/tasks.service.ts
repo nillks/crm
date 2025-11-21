@@ -217,33 +217,53 @@ export class TasksService implements OnModuleInit {
    * Получить задачи с приближающимися сроками (в течение 24 часов)
    */
   async getUpcomingTasks(hours: number = 24): Promise<Task[]> {
-    const now = new Date();
-    const deadline = new Date(now.getTime() + hours * 60 * 60 * 1000);
+    try {
+      const now = new Date();
+      const deadline = new Date(now.getTime() + hours * 60 * 60 * 1000);
 
-    return this.tasksRepository.find({
-      where: {
-        status: In([TaskStatus.PENDING, TaskStatus.IN_PROGRESS]),
-        dueDate: Between(now, deadline),
-      },
-      relations: ['client', 'assignedTo'],
-      order: { dueDate: 'ASC', priority: 'DESC' },
-    });
+      return this.tasksRepository
+        .createQueryBuilder('task')
+        .leftJoinAndSelect('task.client', 'client')
+        .leftJoinAndSelect('task.assignedTo', 'assignedTo')
+        .where('task.status IN (:...statuses)', {
+          statuses: [TaskStatus.PENDING, TaskStatus.IN_PROGRESS],
+        })
+        .andWhere('task.dueDate IS NOT NULL')
+        .andWhere('task.dueDate BETWEEN :now AND :deadline', { now, deadline })
+        .orderBy('task.dueDate', 'ASC')
+        .addOrderBy('task.priority', 'DESC')
+        .getMany();
+    } catch (error: any) {
+      this.logger.error('Error in getUpcomingTasks:', error);
+      this.logger.error('Error stack:', error.stack);
+      throw error;
+    }
   }
 
   /**
    * Получить просроченные задачи
    */
   async getOverdueTasks(): Promise<Task[]> {
-    const now = new Date();
+    try {
+      const now = new Date();
 
-    return this.tasksRepository.find({
-      where: {
-        status: In([TaskStatus.PENDING, TaskStatus.IN_PROGRESS]),
-        dueDate: LessThanOrEqual(now),
-      },
-      relations: ['client', 'assignedTo'],
-      order: { dueDate: 'ASC', priority: 'DESC' },
-    });
+      return this.tasksRepository
+        .createQueryBuilder('task')
+        .leftJoinAndSelect('task.client', 'client')
+        .leftJoinAndSelect('task.assignedTo', 'assignedTo')
+        .where('task.status IN (:...statuses)', {
+          statuses: [TaskStatus.PENDING, TaskStatus.IN_PROGRESS],
+        })
+        .andWhere('task.dueDate IS NOT NULL')
+        .andWhere('task.dueDate <= :now', { now })
+        .orderBy('task.dueDate', 'ASC')
+        .addOrderBy('task.priority', 'DESC')
+        .getMany();
+    } catch (error: any) {
+      this.logger.error('Error in getOverdueTasks:', error);
+      this.logger.error('Error stack:', error.stack);
+      throw error;
+    }
   }
 
   /**
