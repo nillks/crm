@@ -197,40 +197,58 @@ export const clientsService = {
    * Экспорт клиентов в Excel файл
    */
   async exportClients(filters?: FilterClientsDto): Promise<void> {
-    try {
-      const params = new URLSearchParams();
-      
-      if (filters) {
-        if (filters.search) params.append('search', filters.search);
-        if (filters.name) params.append('name', filters.name);
-        if (filters.phone) params.append('phone', filters.phone);
-        if (filters.email) params.append('email', filters.email);
-        if (filters.status) params.append('status', filters.status);
-        if (filters.tags) {
-          const tagsArray = Array.isArray(filters.tags) ? filters.tags : [filters.tags];
-          tagsArray.forEach(tag => params.append('tags', tag));
-        }
-        if (filters.sortBy) params.append('sortBy', filters.sortBy);
-        if (filters.sortOrder) params.append('sortOrder', filters.sortOrder);
+    const params = new URLSearchParams();
+    
+    if (filters) {
+      if (filters.search) params.append('search', filters.search);
+      if (filters.name) params.append('name', filters.name);
+      if (filters.phone) params.append('phone', filters.phone);
+      if (filters.email) params.append('email', filters.email);
+      if (filters.status) params.append('status', filters.status);
+      if (filters.tags) {
+        const tagsArray = Array.isArray(filters.tags) ? filters.tags : [filters.tags];
+        tagsArray.forEach(tag => params.append('tags', tag));
       }
+      if (filters.sortBy) params.append('sortBy', filters.sortBy);
+      if (filters.sortOrder) params.append('sortOrder', filters.sortOrder);
+    }
 
-      const queryString = params.toString();
-      const url = `/clients/export${queryString ? `?${queryString}` : ''}`;
+    const queryString = params.toString();
+    const url = `/clients/export${queryString ? `?${queryString}` : ''}`;
 
+    try {
       const response = await api.get(url, {
         responseType: 'blob',
       });
 
+      // Проверяем статус ответа
+      if (response.status < 200 || response.status >= 300) {
+        // Если статус не успешный, пытаемся прочитать ошибку из blob
+        if (response.data instanceof Blob) {
+          const text = await response.data.text();
+          try {
+            const errorData = JSON.parse(text);
+            throw new Error(errorData.message || 'Ошибка при экспорте клиентов');
+          } catch (parseError) {
+            throw new Error('Ошибка при экспорте клиентов');
+          }
+        }
+        throw new Error('Ошибка при экспорте клиентов');
+      }
+
+      // Проверяем Content-Type ответа
+      const contentType = response.headers['content-type'] || '';
+      
+      // Если это JSON (ошибка), обрабатываем как ошибку
+      if (contentType.includes('application/json')) {
+        const text = await response.data.text();
+        const errorData = JSON.parse(text);
+        throw new Error(errorData.message || 'Ошибка при экспорте клиентов');
+      }
+
       // Проверяем, что ответ действительно blob
       if (!(response.data instanceof Blob)) {
-        // Если это не blob, возможно это ошибка в JSON формате
-        const text = await response.data.text();
-        try {
-          const errorData = JSON.parse(text);
-          throw new Error(errorData.message || 'Ошибка при экспорте клиентов');
-        } catch (e) {
-          throw new Error('Ошибка при экспорте клиентов');
-        }
+        throw new Error('Неверный формат ответа от сервера');
       }
 
       // Создаем ссылку для скачивания
@@ -246,20 +264,40 @@ export const clientsService = {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(downloadUrl);
     } catch (error: any) {
-      // Если ошибка, пробрасываем её дальше
-      if (error.response?.data) {
-        // Если это blob с ошибкой, пытаемся прочитать его
+      // Если это ошибка axios с response
+      if (error.response) {
+        const contentType = error.response.headers['content-type'] || '';
+        
+        // Если ответ - blob, пытаемся прочитать его как JSON
         if (error.response.data instanceof Blob) {
-          const text = await error.response.data.text();
           try {
+            const text = await error.response.data.text();
             const errorData = JSON.parse(text);
             throw new Error(errorData.message || 'Ошибка при экспорте клиентов');
-          } catch (e) {
+          } catch (parseError) {
+            // Если не удалось распарсить, значит это не JSON ошибка
             throw new Error('Ошибка при экспорте клиентов');
           }
         }
+        
+        // Если есть сообщение об ошибке в data
+        if (error.response.data?.message) {
+          throw new Error(error.response.data.message);
+        }
+        
+        // Если это строка
+        if (typeof error.response.data === 'string') {
+          throw new Error(error.response.data);
+        }
       }
-      throw error;
+      
+      // Если это уже Error объект, пробрасываем его
+      if (error instanceof Error) {
+        throw error;
+      }
+      
+      // Иначе создаем новую ошибку
+      throw new Error(error.message || 'Ошибка при экспорте клиентов');
     }
   },
 

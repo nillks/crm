@@ -67,11 +67,16 @@ export class ClientsController {
 
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(fileName)}"`);
+      res.setHeader('Content-Length', buffer.length.toString());
       res.send(buffer);
     } catch (error: any) {
-      res.status(500).json({
-        message: error.message || 'Ошибка при экспорте клиентов',
-      });
+      // Важно: если используем @Res(), нужно явно отправить ответ
+      // Не используем return, так как это отключит стандартную обработку ответа NestJS
+      if (!res.headersSent) {
+        res.status(500).json({
+          message: error.message || 'Ошибка при экспорте клиентов',
+        });
+      }
     }
   }
 

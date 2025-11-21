@@ -679,16 +679,19 @@ export class ClientsService {
    * Экспорт клиентов в Excel файл
    */
   async exportToExcel(filters?: FilterClientsDto): Promise<Buffer> {
-    const {
-      search,
-      name,
-      phone,
-      email,
-      status,
-      tags,
-      sortBy = 'createdAt',
-      sortOrder = 'DESC',
-    } = filters || {};
+    try {
+      this.logger.log(`Starting export with filters: ${JSON.stringify(filters || {})}`);
+      
+      const {
+        search,
+        name,
+        phone,
+        email,
+        status,
+        tags,
+        sortBy = 'createdAt',
+        sortOrder = 'DESC',
+      } = filters || {};
 
     // Используем ту же логику фильтрации, что и в findAll, но без пагинации
     const queryBuilder = this.clientsRepository.createQueryBuilder('client');
@@ -805,7 +808,13 @@ export class ClientsService {
 
     // Генерируем буфер
     const buffer = await workbook.xlsx.writeBuffer();
-    return Buffer.from(buffer);
+    const result = Buffer.from(buffer);
+    this.logger.log(`Export completed successfully. Buffer size: ${result.length} bytes`);
+    return result;
+    } catch (error: any) {
+      this.logger.error(`Error during export: ${error.message}`, error.stack);
+      throw error;
+    }
   }
 }
 
