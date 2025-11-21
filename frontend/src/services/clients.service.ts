@@ -194,6 +194,47 @@ export const clientsService = {
   },
 
   /**
+   * Экспорт клиентов в Excel файл
+   */
+  async exportClients(filters?: FilterClientsDto): Promise<void> {
+    const params = new URLSearchParams();
+    
+    if (filters) {
+      if (filters.search) params.append('search', filters.search);
+      if (filters.name) params.append('name', filters.name);
+      if (filters.phone) params.append('phone', filters.phone);
+      if (filters.email) params.append('email', filters.email);
+      if (filters.status) params.append('status', filters.status);
+      if (filters.tags) {
+        const tagsArray = Array.isArray(filters.tags) ? filters.tags : [filters.tags];
+        tagsArray.forEach(tag => params.append('tags', tag));
+      }
+      if (filters.sortBy) params.append('sortBy', filters.sortBy);
+      if (filters.sortOrder) params.append('sortOrder', filters.sortOrder);
+    }
+
+    const queryString = params.toString();
+    const url = `/clients/export${queryString ? `?${queryString}` : ''}`;
+
+    const response = await api.get(url, {
+      responseType: 'blob',
+    });
+
+    // Создаем ссылку для скачивания
+    const blob = new Blob([response.data], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = `clients_export_${Date.now()}.xlsx`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(downloadUrl);
+  },
+
+  /**
    * Получить комментарии клиента
    */
   async getClientComments(clientId: string): Promise<ClientComment[]> {

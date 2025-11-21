@@ -222,6 +222,23 @@ export const ClientsPage: React.FC = () => {
     setImportResult(null);
   };
 
+  const handleExport = async () => {
+    try {
+      setError(null);
+      // Собираем текущие фильтры
+      const filters: FilterClientsDto = {
+        search: search || undefined,
+        status: statusFilter || undefined,
+        tags: selectedTags.length > 0 ? selectedTags : undefined,
+        sortBy: 'createdAt',
+        sortOrder: 'DESC',
+      };
+      await clientsService.exportClients(filters);
+    } catch (err: any) {
+      setError(getErrorMessage(err));
+    }
+  };
+
   return (
     <Box
       sx={{
@@ -266,6 +283,14 @@ export const ClientsPage: React.FC = () => {
                 sx={{ borderRadius: 2 }}
               >
                 Импорт
+              </Button>
+              <Button
+                variant="outlined"
+                startIcon={<Download />}
+                onClick={handleExport}
+                sx={{ borderRadius: 2 }}
+              >
+                Экспорт
               </Button>
               <Button
                 variant="contained"

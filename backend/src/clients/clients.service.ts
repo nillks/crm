@@ -674,5 +674,120 @@ export class ClientsService {
 
     await this.clientCommentsRepository.remove(comment);
   }
+
+  /**
+   * Экспорт клиентов в Excel файл
+   */
+  async exportToExcel(filters?: FilterClientsDto): Promise<Buffer> {
+    const {
+      search,
+      name,
+      phone,
+      email,
+      status,
+      tags,
+      sortBy = 'createdAt',
+      sortOrder = 'DESC',
+    } = filters || {};
+
+    // Используем ту же логику фильтрации, что и в findAll, но без пагинации
+    const queryBuilder = this.clientsRepository.createQueryBuilder('client');
+
+    // Если указан общий поиск, ищем по имени, телефону или email
+    if (search) {
+      queryBuilder.where(
+        '(client.name ILIKE :search OR client.phone ILIKE :search OR client.email ILIKE :search)',
+        { search: `%${search}%` },
+      );
+    } else {
+      // Иначе используем конкретные фильтры
+      if (name) {
+        queryBuilder.andWhere('client.name ILIKE :name', { name: `%${name}%` });
+      }
+      if (phone) {
+        queryBuilder.andWhere('client.phone ILIKE :phone', { phone: `%${phone}%` });
+      }
+      if (email) {
+        queryBuilder.andWhere('client.email ILIKE :email', { email: `%${email}%` });
+      }
+      if (status) {
+        queryBuilder.andWhere('client.status = :status', { status });
+      }
+    }
+
+    // Фильтр по тегам
+    if (tags) {
+      const tagArray = typeof tags === 'string' 
+        ? tags.split(',').map((t) => t.trim()).filter((t) => t.length > 0)
+        : Array.isArray(tags) 
+          ? tags 
+          : [];
+      if (tagArray.length > 0) {
+        queryBuilder.andWhere('client.tags && :tags', { tags: tagArray });
+      }
+    }
+
+    // Сортировка
+    queryBuilder.orderBy(`client.${sortBy}`, sortOrder);
+
+    // Получаем всех клиентов (без пагинации)
+    const allClients = await queryBuilder.getMany();
+
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Клиенты');
+
+    // Заголовки
+    worksheet.columns = [
+      { header: 'Имя', key: 'name', width: 30 },
+      { header: 'Телефон', key: 'phone', width: 20 },
+      { header: 'Email', key: 'email', width: 30 },
+      { header: 'Telegram ID', key: 'telegramId', width: 20 },
+      { header: 'WhatsApp ID', key: 'whatsappId', width: 20 },
+      { header: 'Instagram ID', key: 'instagramId', width: 20 },
+      { header: 'Заметки', key: 'notes', width: 40 },
+      { header: 'Статус', key: 'status', width: 15 },
+      { header: 'Теги', key: 'tags', width: 30 },
+      { header: 'Кастомные поля', key: 'customFields', width: 40 },
+      { header: 'Дата создания', key: 'createdAt', width: 20 },
+      { header: 'Дата обновления', key: 'updatedAt', width: 20 },
+    ];
+
+    // Стили для заголовков
+    worksheet.getRow(1).font = { bold: true };
+    worksheet.getRow(1).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFE0E0E0' },
+    };
+
+    // Данные
+    allClients.forEach((client) => {
+      worksheet.addRow({
+        name: client.name,
+        phone: client.phone || '',
+        email: client.email || '',
+        telegramId: client.telegramId || '',
+        whatsappId: client.whatsappId || '',
+        instagramId: client.instagramId || '',
+        notes: client.notes || '',
+        status: client.status === 'active' ? 'Активен' : client.status === 'inactive' ? 'Неактивен' : 'Заблокирован',
+        tags: client.tags?.join(', ') || '',
+        customFields: client.customFields ? JSON.stringify(client.customFields) : '',
+        createdAt: client.createdAt ? new Date(client.createdAt).toLocaleString('ru-RU') : '',
+        updatedAt: client.updatedAt ? new Date(client.updatedAt).toLocaleString('ru-RU') : '',
+      });
+    });
+
+    // Автоподбор ширины колонок
+    worksheet.columns.forEach((column) => {
+      if (column.width) {
+        column.width = Math.max(column.width || 10, 10);
+      }
+    });
+
+    // Генерируем буфер
+    const buffer = await workbook.xlsx.writeBuffer();
+    return Buffer.from(buffer);
+  }
 }
 

@@ -12,7 +12,9 @@ import {
   HttpStatus,
   UseInterceptors,
   UploadedFile,
+  Res,
 } from '@nestjs/common';
+import { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ClientsService } from './clients.service';
 import { CreateClientDto, UpdateClientDto, FilterClientsDto } from './dto';
@@ -47,6 +49,24 @@ export class ClientsController {
   @RequirePermissions({ action: Action.Read, subject: Subject.Client })
   findAll(@Query() filterDto: FilterClientsDto) {
     return this.clientsService.findAll(filterDto);
+  }
+
+  /**
+   * Экспорт клиентов в Excel файл
+   * GET /clients/export
+   */
+  @Get('export')
+  @RequirePermissions({ action: Action.Read, subject: Subject.Client })
+  async exportClients(
+    @Query() filterDto: FilterClientsDto,
+    @Res() res: Response,
+  ) {
+    const buffer = await this.clientsService.exportToExcel(filterDto);
+    const fileName = `clients_export_${Date.now()}.xlsx`;
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(fileName)}"`);
+    res.send(buffer);
   }
 
   /**
