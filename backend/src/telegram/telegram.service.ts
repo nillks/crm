@@ -162,6 +162,7 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
 
       // Находим или создаем клиента
       const client = await this.findOrCreateClient(userId, username, chatId);
+      this.logger.log(`Client found/created: ${client.id}, telegramId: ${client.telegramId}, name: ${client.name}`);
 
       // Проверяем, не существует ли уже сообщение с таким externalId
       const existingMessage = await this.messagesRepository.findOne({
@@ -175,9 +176,10 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
 
       // Находим или создаем тикет
       const ticket = await this.findOrCreateTicket(client);
+      this.logger.log(`Ticket found/created: ${ticket?.id || 'null'}`);
 
       // Сохраняем сообщение
-      const savedMessage = this.messagesRepository.create({
+      const messageToSave = {
         channel: MessageChannel.TELEGRAM,
         direction: MessageDirection.INBOUND,
         content,
@@ -187,13 +189,45 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
         isRead: false,
         isDelivered: true,
         deliveredAt: new Date(timestamp),
-      });
+      };
 
+      this.logger.log(`[handleIncomingMessage] Saving message with data:`, JSON.stringify({
+        channel: messageToSave.channel,
+        direction: messageToSave.direction,
+        clientId: messageToSave.clientId,
+        ticketId: messageToSave.ticketId,
+        contentLength: content.length,
+        externalId: messageToSave.externalId,
+        clientTelegramId: client.telegramId,
+      }, null, 2));
+
+      const savedMessage = this.messagesRepository.create(messageToSave);
       await this.messagesRepository.save(savedMessage);
 
-      this.logger.log(
-        `✅ Incoming Telegram message saved successfully: ${messageId} from ${username} (${chatId}), message ID in DB: ${savedMessage.id}, channel: ${savedMessage.channel}, direction: ${savedMessage.direction}`,
-      );
+      // Проверяем, что сообщение действительно сохранено и связано с клиентом
+      const verifyMessage = await this.messagesRepository.findOne({
+        where: { id: savedMessage.id },
+        relations: ['client'],
+      });
+
+      if (verifyMessage) {
+        this.logger.log(
+          `✅ [handleIncomingMessage] Incoming Telegram message saved and verified: ${messageId} from ${username} (${chatId}), message ID in DB: ${savedMessage.id}, channel: ${savedMessage.channel}, direction: ${savedMessage.direction}, clientId: ${savedMessage.clientId}, clientTelegramId: ${verifyMessage.client?.telegramId || 'N/A'}`,
+        );
+        
+        // Проверяем, что сообщение связано с правильным клиентом
+        if (verifyMessage.clientId !== client.id) {
+          this.logger.error(`❌ [handleIncomingMessage] Message clientId mismatch! Expected: ${client.id}, Got: ${verifyMessage.clientId}`);
+        }
+      } else {
+        this.logger.error(`❌ [handleIncomingMessage] Message NOT found in DB after save! ID: ${savedMessage.id}`);
+      }
+      
+      // Дополнительная проверка: ищем все сообщения этого клиента
+      const clientMessagesCount = await this.messagesRepository.count({
+        where: { clientId: client.id, channel: MessageChannel.TELEGRAM },
+      });
+      this.logger.log(`[handleIncomingMessage] Total Telegram messages for client ${client.id}: ${clientMessagesCount}`);
 
       // Автоматический вызов AI для входящих сообщений
       // Выполняем асинхронно, чтобы не блокировать обработку сообщения
@@ -278,31 +312,55 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
       userId = chatId;
     }
 
+    this.logger.log(`[findOrCreateClient] Looking for client with telegramId: ${userId}, chatId: ${chatId}, username: ${username}`);
+
     // Ищем клиента по Telegram ID
     let client = await this.clientsRepository.findOne({
       where: { telegramId: userId },
     });
 
     if (!client) {
-      // Создаем нового клиента
-      const name = username !== 'Unknown' ? username : `Telegram ${userId}`;
+      // Также пробуем найти по chatId, если он отличается
+      if (chatId !== userId) {
+        client = await this.clientsRepository.findOne({
+          where: { telegramId: chatId },
+        });
+      }
 
-      client = this.clientsRepository.create({
-        name,
-        telegramId: userId,
-        status: 'active',
-      });
+      if (!client) {
+        // Создаем нового клиента
+        const name = username !== 'Unknown' ? username : `Telegram ${userId}`;
 
-      client = await this.clientsRepository.save(client);
-      this.logger.log(`Created new client: ${client.id} for Telegram user ${userId}`);
+        this.logger.log(`[findOrCreateClient] Creating new client for Telegram user ${userId} (chatId: ${chatId})`);
+        client = this.clientsRepository.create({
+          name,
+          telegramId: userId,
+          status: 'active',
+        });
+
+        client = await this.clientsRepository.save(client);
+        this.logger.log(`[findOrCreateClient] ✅ Created new client: ${client.id} for Telegram user ${userId}, telegramId: ${client.telegramId}`);
+      } else {
+        this.logger.log(`[findOrCreateClient] Found client by chatId: ${client.id}, telegramId: ${client.telegramId}`);
+      }
     } else {
+      this.logger.log(`[findOrCreateClient] Found existing client: ${client.id}, telegramId: ${client.telegramId}, name: ${client.name}`);
+      
       // Обновляем имя, если оно было передано и отличается
       if (username !== 'Unknown' && client.name !== username && !client.name.includes('Telegram')) {
         client.name = username;
         await this.clientsRepository.save(client);
+        this.logger.log(`[findOrCreateClient] Updated client name to: ${username}`);
       }
     }
 
+    // Проверяем, что clientId правильный
+    if (!client.id) {
+      this.logger.error(`[findOrCreateClient] ❌ Client has no ID!`, client);
+      throw new Error('Client has no ID');
+    }
+
+    this.logger.log(`[findOrCreateClient] Returning client: ${client.id}, telegramId: ${client.telegramId}`);
     return client;
   }
 
@@ -436,4 +494,5 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
     };
   }
 }
+
 

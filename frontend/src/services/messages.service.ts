@@ -109,10 +109,22 @@ export const messagesService = {
         let channel = msg.channel;
         if (channel) {
           const channelStr = String(channel).toLowerCase().trim();
+          
+          // Логируем для отладки Telegram сообщений
+          if (channelStr.includes('telegram') || channelStr.includes('tg')) {
+            console.log('[messagesService] Processing Telegram message:', {
+              msgId: msg.id,
+              originalChannel: msg.channel,
+              channelStr,
+              content: msg.content?.substring(0, 30),
+            });
+          }
+          
           if (channelStr === 'whatsapp' || channelStr === 'wa' || channelStr === 'whats_app') {
             channel = MessageChannel.WHATSAPP;
           } else if (channelStr === 'telegram' || channelStr === 'tg' || channelStr === 'tele_gram') {
             channel = MessageChannel.TELEGRAM;
+            console.log('[messagesService] ✅ Normalized to TELEGRAM:', msg.id);
           } else if (channelStr === 'instagram' || channelStr === 'ig' || channelStr === 'insta_gram') {
             channel = MessageChannel.INSTAGRAM;
           } else {
@@ -122,17 +134,19 @@ export const messagesService = {
               channel = MessageChannel.WHATSAPP;
             } else if (upperChannel === 'TELEGRAM' || upperChannel === 'TG') {
               channel = MessageChannel.TELEGRAM;
+              console.log('[messagesService] ✅ Normalized to TELEGRAM (uppercase):', msg.id);
             } else if (upperChannel === 'INSTAGRAM' || upperChannel === 'IG') {
               channel = MessageChannel.INSTAGRAM;
             } else if (Object.values(MessageChannel).includes(channel as MessageChannel)) {
               // Уже правильный формат
+              console.log('[messagesService] Channel already in correct format:', channel);
             } else {
-              console.warn('Invalid channel:', channel, 'defaulting to whatsapp. Original:', msg.channel);
+              console.warn('[messagesService] Invalid channel:', channel, 'defaulting to whatsapp. Original:', msg.channel, 'msgId:', msg.id);
               channel = MessageChannel.WHATSAPP;
             }
           }
         } else {
-          console.warn('Channel is missing for message:', msg.id, 'defaulting to whatsapp');
+          console.warn('[messagesService] Channel is missing for message:', msg.id, 'defaulting to whatsapp');
           channel = MessageChannel.WHATSAPP;
         }
         
@@ -189,10 +203,19 @@ export const messagesService = {
         };
       });
       
-      console.log('Processed messages:', {
+      console.log('[messagesService] Processed messages:', {
         messagesCount: messages.length,
-        messages: messages,
         channels: [...new Set(messages.map(m => m.channel))],
+        telegramMessages: messages.filter(m => {
+          const ch = String(m.channel || '').toLowerCase().trim();
+          return ch === 'telegram' || ch === 'tg';
+        }).length,
+        sampleMessages: messages.slice(0, 3).map(m => ({
+          id: m.id,
+          channel: m.channel,
+          direction: m.direction,
+          content: m.content?.substring(0, 30),
+        })),
       });
       
       // Применяем фильтры на frontend
@@ -200,6 +223,13 @@ export const messagesService = {
         const filterChannel = params.channel;
         const beforeFilter = messages.length;
         const filterChannelLower = String(filterChannel).toLowerCase().trim();
+        
+        console.log('[messagesService] Filtering by channel:', {
+          filterChannel,
+          filterChannelLower,
+          beforeFilter,
+          allChannels: [...new Set(messages.map(m => String(m.channel || '').toLowerCase().trim()))],
+        });
         
         messages = messages.filter((msg) => {
           const msgChannel = String(msg.channel || '').toLowerCase().trim();
@@ -216,7 +246,15 @@ export const messagesService = {
           
           // Специальные случаи для Telegram
           if (filterChannelLower === 'telegram' || filterChannelLower === MessageChannel.TELEGRAM.toLowerCase()) {
-            return msgChannel === 'telegram' || msgChannel === 'tg' || msgChannel === 'tele_gram';
+            const matches = msgChannel === 'telegram' || msgChannel === 'tg' || msgChannel === 'tele_gram';
+            if (matches) {
+              console.log('[messagesService] ✅ Telegram message matched:', {
+                msgId: msg.id,
+                msgChannel,
+                filterChannelLower,
+              });
+            }
+            return matches;
           }
           
           // Специальные случаи для Instagram
@@ -227,13 +265,17 @@ export const messagesService = {
           return false;
         });
         
-        console.log('Filtered by channel:', {
+        console.log('[messagesService] Filtered by channel:', {
           filterChannel: params.channel,
           filterChannelLower,
           beforeFilter,
           afterFilter: messages.length,
           availableChannels: [...new Set(messages.map(m => m.channel))],
           allChannelsBeforeFilter: [...new Set((client.messages || []).map((m: any) => m.channel))],
+          telegramMessagesAfterFilter: messages.filter(m => {
+            const ch = String(m.channel || '').toLowerCase().trim();
+            return ch === 'telegram' || ch === 'tg';
+          }).length,
         });
       }
       if (params?.direction) {

@@ -150,27 +150,63 @@ export class ClientsService {
       }
 
       // Диагностика: проверяем, что сообщения загружены
-      console.log(`[ClientsService] Loaded client ${id} with ${client.messages?.length || 0} messages`);
-      console.log(`[ClientsService] Client whatsappId: ${client.whatsappId}, phone: ${client.phone}`);
+      this.logger.log(`[ClientsService] Loaded client ${id} with ${client.messages?.length || 0} messages`);
+      this.logger.log(`[ClientsService] Client whatsappId: ${client.whatsappId}, telegramId: ${client.telegramId}, phone: ${client.phone}`);
+      
       if (client.messages && client.messages.length > 0) {
-        console.log(`[ClientsService] Message channels:`, [...new Set(client.messages.map((m: any) => m.channel))]);
-        console.log(`[ClientsService] Message directions:`, [...new Set(client.messages.map((m: any) => m.direction))]);
-        console.log(`[ClientsService] Sample messages (first 3):`, client.messages.slice(0, 3).map((m: any) => ({
+        const channels = [...new Set(client.messages.map((m: any) => m.channel))];
+        const directions = [...new Set(client.messages.map((m: any) => m.direction))];
+        const telegramMessages = client.messages.filter((m: any) => {
+          const channelStr = String(m.channel || '').toLowerCase().trim();
+          return channelStr === 'telegram' || channelStr === 'tg';
+        });
+        
+        this.logger.log(`[ClientsService] Message channels: ${channels.join(', ')}`);
+        this.logger.log(`[ClientsService] Message directions: ${directions.join(', ')}`);
+        this.logger.log(`[ClientsService] Telegram messages count: ${telegramMessages.length}`);
+        
+        if (telegramMessages.length > 0) {
+          this.logger.log(`[ClientsService] Sample Telegram messages (first 3):`, JSON.stringify(telegramMessages.slice(0, 3).map((m: any) => ({
+            id: m.id,
+            channel: m.channel,
+            channelType: typeof m.channel,
+            direction: m.direction,
+            directionType: typeof m.direction,
+            content: m.content?.substring(0, 50),
+            clientId: m.clientId,
+            createdAt: m.createdAt,
+          })), null, 2));
+        }
+        
+        this.logger.log(`[ClientsService] Sample messages (first 3):`, JSON.stringify(client.messages.slice(0, 3).map((m: any) => ({
           id: m.id,
           channel: m.channel,
+          channelType: typeof m.channel,
           direction: m.direction,
+          directionType: typeof m.direction,
           content: m.content?.substring(0, 50),
           clientId: m.clientId,
           createdAt: m.createdAt,
-        })));
+        })), null, 2));
       } else {
-        console.warn(`[ClientsService] ⚠️ No messages found for client ${id}!`);
-        console.warn(`[ClientsService] Client data:`, {
+        this.logger.warn(`[ClientsService] ⚠️ No messages found for client ${id}!`);
+        this.logger.warn(`[ClientsService] Client data:`, JSON.stringify({
           id: client.id,
           whatsappId: client.whatsappId,
+          telegramId: client.telegramId,
           phone: client.phone,
           name: client.name,
+        }, null, 2));
+        
+        // Проверяем, есть ли сообщения в БД для этого клиента напрямую
+        const { Message } = await import('../entities/message.entity');
+        const directMessages = await this.clientsRepository.manager.find(Message, {
+          where: { clientId: id },
         });
+        this.logger.warn(`[ClientsService] Direct DB query found ${directMessages.length} messages for client ${id}`);
+        if (directMessages.length > 0) {
+          this.logger.warn(`[ClientsService] Direct messages channels:`, [...new Set(directMessages.map(m => m.channel))]);
+        }
       }
 
       // Загружаем остальные relations если нужно
