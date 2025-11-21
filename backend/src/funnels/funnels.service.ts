@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { Funnel } from '../entities/funnel.entity';
 import { FunnelStage } from '../entities/funnel-stage.entity';
 import { Ticket } from '../entities/ticket.entity';
@@ -67,12 +67,15 @@ export class FunnelsService {
     const funnel = await this.findOne(id);
 
     // Проверяем, есть ли тикеты в этой воронке
-    const ticketsCount = await this.ticketsRepository.count({
-      where: { funnelStageId: funnel.stages.map(s => s.id) },
-    });
+    const stageIds = funnel.stages.map(s => s.id);
+    if (stageIds.length > 0) {
+      const ticketsCount = await this.ticketsRepository.count({
+        where: { funnelStageId: In(stageIds) },
+      });
 
-    if (ticketsCount > 0) {
-      throw new BadRequestException('Невозможно удалить воронку, в которой есть тикеты');
+      if (ticketsCount > 0) {
+        throw new BadRequestException('Невозможно удалить воронку, в которой есть тикеты');
+      }
     }
 
     await this.funnelsRepository.remove(funnel);
